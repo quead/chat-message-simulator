@@ -15,8 +15,6 @@ export interface ExportSettings {
   scale: number
   format: ExportFormat
   quality: number
-  background: string
-  transparent: boolean
 }
 
 export interface UiState {
@@ -38,6 +36,7 @@ interface ConversationStore {
   backgroundColor: string
   exportSettings: ExportSettings
   ui: UiState
+  lastAutosaveAt: number | null
   setLayout: (layoutId: LayoutId) => void
   setTheme: (themeId: ThemeId) => void
   setActiveParticipant: (participantId: string) => void
@@ -45,6 +44,7 @@ interface ConversationStore {
   setBackgroundImageOpacity: (opacity: number) => void
   clearBackgroundImage: () => void
   setBackgroundColor: (color: string) => void
+  setLastAutosaveAt: (timestamp: number | null) => void
   addParticipant: (participant: Omit<Participant, "id">) => void
   updateParticipant: (participantId: string, updates: Partial<Participant>) => void
   removeParticipant: (participantId: string) => void
@@ -138,8 +138,6 @@ const defaultExportSettings: ExportSettings = {
   scale: 2,
   format: "png",
   quality: 0.95,
-  background: "#ffffff",
-  transparent: false,
 }
 
 const defaultUiState: UiState = {
@@ -165,6 +163,7 @@ export const useConversationStore = create<ConversationStore>()(
       backgroundColor: "",
       exportSettings: defaultExportSettings,
       ui: defaultUiState,
+      lastAutosaveAt: null,
       setLayout: (layoutId) => set({ layoutId }),
       setTheme: (themeId) => set({ themeId }),
       setActiveParticipant: (participantId) => set({ activeParticipantId: participantId }),
@@ -172,6 +171,7 @@ export const useConversationStore = create<ConversationStore>()(
       setBackgroundImageOpacity: (opacity) => set({ backgroundImageOpacity: opacity }),
       clearBackgroundImage: () => set({ backgroundImageUrl: "" }),
       setBackgroundColor: (color) => set({ backgroundColor: color }),
+      setLastAutosaveAt: (timestamp) => set({ lastAutosaveAt: timestamp }),
       addParticipant: (participant) =>
         set((state) => {
           const newParticipant: Participant = { id: generateId(), ...participant }
@@ -331,6 +331,12 @@ export const useConversationStore = create<ConversationStore>()(
           activeParticipantId: defaultParticipants[0].id,
           layoutId: defaultLayoutId,
           themeId: "light",
+          backgroundImageUrl: "",
+          backgroundImageOpacity: 0.35,
+          backgroundColor: "",
+          exportSettings: { ...defaultExportSettings },
+          ui: { ...defaultUiState },
+          lastAutosaveAt: null,
         }),
       loadConversation: (conversation) => {
         const legacyTitle = (conversation as { title?: string }).title
@@ -381,6 +387,7 @@ export const useConversationStore = create<ConversationStore>()(
         backgroundImageOpacity: state.backgroundImageOpacity,
         backgroundColor: state.backgroundColor,
         exportSettings: state.exportSettings,
+        lastAutosaveAt: state.lastAutosaveAt,
       }),
     },
   ),

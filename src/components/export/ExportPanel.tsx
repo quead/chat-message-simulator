@@ -1,14 +1,12 @@
 import { useMemo, useState } from "react"
-import { Copy, Download, Image, Loader2, Palette, StretchHorizontal, StretchVertical } from "lucide-react"
+import { Copy, Download, Image, Loader2, StretchHorizontal, StretchVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { SizePresets } from "@/components/export/SizePresets"
 import { sizePresets } from "@/constants/exportPresets"
 import { exportNodeToImage } from "@/utils/export"
 import { useConversationStore } from "@/store/conversationStore"
-import { cn } from "@/utils/cn"
 
 interface ExportPanelProps {
   targetRef: React.RefObject<HTMLDivElement | null> | React.RefObject<HTMLDivElement>
@@ -146,47 +144,22 @@ export const ExportPanel = ({ targetRef }: ExportPanelProps) => {
         <div className="flex gap-2">
           <Button
             variant={exportSettings.format === "png" ? "default" : "outline"}
-            onClick={() => setExportSettings({ format: "png", transparent: exportSettings.transparent })}
+            onClick={() => setExportSettings({ format: "png" })}
           >
             PNG
           </Button>
           <Button
             variant={exportSettings.format === "jpeg" ? "default" : "outline"}
-            onClick={() => setExportSettings({ format: "jpeg", transparent: false })}
+            onClick={() => setExportSettings({ format: "jpeg" })}
           >
             JPEG
           </Button>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Background</Label>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <Palette className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              type="text"
-              value={exportSettings.background}
-              onChange={(event) => setExportSettings({ background: event.target.value })}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1">
-            <Switch
-              checked={exportSettings.transparent}
-              onCheckedChange={(value) => setExportSettings({ transparent: value })}
-              disabled={exportSettings.format === "jpeg"}
-            />
-            <span className={cn("text-xs", exportSettings.format === "jpeg" && "opacity-50")}>
-              Transparent
-            </span>
-          </div>
-        </div>
-      </div>
-
       <Button className="w-full" onClick={handleExport} disabled={isExporting}>
         {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        Download Export
+        Download
       </Button>
 
       {preset ? (

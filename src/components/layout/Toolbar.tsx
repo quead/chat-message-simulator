@@ -1,19 +1,65 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { FileDown, FileUp, MoreHorizontal, Save, Trash2 } from "lucide-react"
 import { useConversationStore } from "@/store/conversationStore"
 import { downloadJson, readJsonFile } from "@/utils/storage"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Separator } from "@/components/ui/separator"
+
+type StoreState = ReturnType<typeof useConversationStore.getState>
+
+const hasPersistedChange = (state: StoreState, prevState: StoreState) =>
+  state.conversation !== prevState.conversation ||
+  state.layoutId !== prevState.layoutId ||
+  state.themeId !== prevState.themeId ||
+  state.backgroundImageUrl !== prevState.backgroundImageUrl ||
+  state.backgroundImageOpacity !== prevState.backgroundImageOpacity ||
+  state.backgroundColor !== prevState.backgroundColor ||
+  state.exportSettings !== prevState.exportSettings
+
+const formatRelativeTime = (from: number, to: number) => {
+  const diffSeconds = Math.max(0, Math.floor((to - from) / 1000))
+  if (diffSeconds < 5) return "just now"
+  if (diffSeconds < 60) return `${diffSeconds}s ago`
+  const diffMinutes = Math.floor(diffSeconds / 60)
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  const diffDays = Math.floor(diffHours / 24)
+  return `${diffDays}d ago`
+}
 
 export const Toolbar = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [showMobileActions, setShowMobileActions] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
   const conversation = useConversationStore((state) => state.conversation)
   const loadConversation = useConversationStore((state) => state.loadConversation)
   const resetConversation = useConversationStore((state) => state.resetConversation)
   const saveSnapshot = useConversationStore((state) => state.saveSnapshot)
   const clearSnapshot = useConversationStore((state) => state.clearSnapshot)
+  const lastAutosaveAt = useConversationStore((state) => state.lastAutosaveAt)
+  const setLastAutosaveAt = useConversationStore((state) => state.setLastAutosaveAt)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 30000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = useConversationStore.subscribe((state, prevState) => {
+      if (!prevState) return
+      if (hasPersistedChange(state, prevState)) {
+        setLastAutosaveAt(Date.now())
+      }
+    })
+    return () => unsubscribe()
+  }, [])
+
+  const autosaveLabel = lastAutosaveAt
+    ? `Autosaved ${formatRelativeTime(lastAutosaveAt, now)}`
+    : "Autosave idle"
 
   return (
     <TooltipProvider>
@@ -30,9 +76,7 @@ export const Toolbar = () => {
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <div className="hidden flex-wrap items-center gap-2 sm:flex">
-            <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 md:flex">
-              Storage
-            </div>
+            <Badge variant="secondary">{autosaveLabel}</Badge>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -63,7 +107,14 @@ export const Toolbar = () => {
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="secondary" size="sm" onClick={saveSnapshot}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    saveSnapshot()
+                    setLastAutosaveAt(Date.now())
+                  }}
+                >
                   <Save className="h-4 w-4" />
                   <span className="hidden sm:inline">Save Local</span>
                 </Button>
@@ -74,6 +125,9 @@ export const Toolbar = () => {
 
           <Separator className="hidden h-8 w-px bg-slate-200 md:block" />
 
+          <Badge variant="secondary" className="flex sm:hidden">
+            {autosaveLabel}
+          </Badge>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -110,6 +164,9 @@ export const Toolbar = () => {
 
         {showMobileActions ? (
           <div className="flex w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 p-3 sm:hidden">
+            <Badge variant="secondary" className="w-full justify-center">
+              {autosaveLabel}
+            </Badge>
             <Button
               variant="secondary"
               size="sm"
@@ -126,7 +183,14 @@ export const Toolbar = () => {
               <FileUp className="h-4 w-4" />
               Load JSON
             </Button>
-            <Button variant="secondary" size="sm" onClick={saveSnapshot}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                saveSnapshot()
+                setLastAutosaveAt(Date.now())
+              }}
+            >
               <Save className="h-4 w-4" />
               Save Local
             </Button>

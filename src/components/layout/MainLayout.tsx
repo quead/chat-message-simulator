@@ -203,9 +203,9 @@ export const MainLayout = () => {
                   ref={previewContainerRef}
                   className="flex h-[60vh] items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-4 lg:h-[70vh]"
                 >
-                  <div className="flex h-full w-full items-center justify-center overflow-auto">
+                  <div className="flex h-full w-full items-start justify-start overflow-auto">
                     <div
-                      className="relative"
+                      className="relative m-auto"
                       style={{
                         width: scaledWidth,
                         height: scaledHeight,

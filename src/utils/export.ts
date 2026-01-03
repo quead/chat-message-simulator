@@ -10,7 +10,6 @@ export const exportNodeToImage = async (
   const commonOptions = {
     width: settings.width,
     height: settings.height,
-    backgroundColor: settings.transparent ? undefined : settings.background,
     pixelRatio: settings.scale,
     cacheBust: true,
     useCORS: true,
