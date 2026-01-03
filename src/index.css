@@ -1,1 +1,105 @@
-@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 47.4% 11.2%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    min-height: 100vh;
+  }
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.chat-surface {
+  background: var(--chat-bg);
+  color: var(--chat-text, #0f172a);
+}
+
+.chat-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.chat-bg-pattern {
+  background-image: var(--chat-pattern);
+  opacity: 0.9;
+}
+
+.chat-header {
+  font-family: var(--layout-font-header, "Space Grotesk");
+}
+
+.layout-whatsapp .chat-bg-pattern {
+  background-size: 420px 420px;
+  background-repeat: repeat;
+  background-position: center;
+  opacity: 1;
+}
+
+.layout-imessage .chat-bg-pattern {
+  background-size: 18px 18px;
+  background-repeat: repeat;
+  background-position: 0 0;
+  opacity: 0.35;
+}
+
+.layout-whatsapp .whatsapp-bubble {
+  position: relative;
+}
+
+.layout-whatsapp .whatsapp-bubble--own::after,
+.layout-whatsapp .whatsapp-bubble--other::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.layout-whatsapp .whatsapp-bubble--own::after {
+  right: -5px;
+  bottom: 1px;
+  border-width: 6px 0 6px 13px;
+  border-color: transparent transparent transparent var(--bubble-color);
+}
+
+.layout-whatsapp .whatsapp-bubble--other::after {
+  left: -5px;
+  bottom: 1px;
+  border-width: 6px 13px 6px 0;
+  border-color: transparent var(--bubble-color) transparent transparent;
+}

@@ -1,65 +1,45 @@
-export type LayoutType = 'whatsapp' | 'imessage' | 'messenger' | 'telegram' | 'discord' | 'slack';
+export type LayoutId =
+  | "whatsapp"
+  | "imessage"
+  | "snapchat"
+  | "messenger"
 
-export type BubbleStyle = 'rounded' | 'sharp' | 'minimal' | 'rounded-tail';
+export type ThemeId = "light" | "dark"
 
-export type HeaderStyle = 'compact' | 'full' | 'minimal';
+export interface LayoutColors {
+  background: string
+  surface: string
+  header: string
+  headerText: string
+  bubbleSent: string
+  bubbleSentText: string
+  bubbleReceived: string
+  bubbleReceivedText: string
+  input: string
+  inputText: string
+  accent: string
+  muted: string
+  border: string
+}
 
-export type ThemeMode = 'light' | 'dark';
-
-export interface ThemeColors {
-  // Background colors
-  background: string;
-  chatBackground: string;
-  
-  // Message bubble colors
-  sentBubble: string;
-  receivedBubble: string;
-  
-  // Text colors
-  sentText: string;
-  receivedText: string;
-  timestamp: string;
-  
-  // UI colors
-  primary: string;
-  secondary: string;
-  border: string;
-  
-  // Header colors
-  headerBackground: string;
-  headerText: string;
-  
-  // Input colors
-  inputBackground: string;
-  inputText: string;
-  inputBorder: string;
+export interface LayoutTheme {
+  id: ThemeId
+  name: string
+  colors: LayoutColors
+  pattern?: string
 }
 
 export interface LayoutConfig {
-  id: LayoutType;
-  name: string;
-  description: string;
-  icon?: string;
-  
-  // Styling configuration
-  bubbleStyle: BubbleStyle;
-  headerStyle: HeaderStyle;
-  fontFamily: string;
-  
-  // Theme colors (light and dark variants)
-  lightColors: ThemeColors;
-  darkColors: ThemeColors;
-  
-  // Spacing and dimensions
-  bubbleMaxWidth: string;
-  bubblePadding: string;
-  bubbleMargin: string;
-  borderRadius: string;
-  
-  // Features support
-  supportsReactions: boolean;
-  supportsReplies: boolean;
-  supportsReadReceipts: boolean;
-  supportsTypingIndicator: boolean;
+  id: LayoutId
+  name: string
+  bubbleStyle: "rounded" | "sharp" | "minimal"
+  headerStyle: "compact" | "full"
+  fonts: {
+    header: string
+    body: string
+  }
+  radius: string
+  showAvatars: boolean
+  showStatus: boolean
+  themes: LayoutTheme[]
 }
-

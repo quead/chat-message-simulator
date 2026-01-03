@@ -1,26 +1,27 @@
-import { Tooltip as TooltipPrimitive } from "@kobalte/core/tooltip";
-import { splitProps, type ParentComponent, type ValidComponent } from "solid-js";
+import * as React from "react"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+import { cn } from "@/utils/cn"
 
-export const TooltipTrigger = TooltipPrimitive.Trigger;
+const TooltipProvider = TooltipPrimitive.Provider
+const Tooltip = TooltipPrimitive.Root
+const TooltipTrigger = TooltipPrimitive.Trigger
 
-type tooltipContentProps<T extends ValidComponent = "div"> =
-  TooltipPrimitive.TooltipContentProps<T> & {
-    class?: string;
-  };
+const TooltipContent = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
+>(({ className, sideOffset = 6, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 rounded-md bg-slate-900 px-3 py-1.5 text-xs text-white shadow-md animate-in fade-in-0 zoom-in-95",
+        className,
+      )}
+      {...props}
+    />
+  </TooltipPrimitive.Portal>
+))
+TooltipContent.displayName = TooltipPrimitive.Content.displayName
 
-export const TooltipContent: ParentComponent<tooltipContentProps> = (props) => {
-  const [local, rest] = splitProps(props, ["class", "children"]);
-  
-  return (
-    <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Content
-        class={`z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground shadow-md animate-in fade-in-0 zoom-in-95 ${local.class || ""}`}
-        {...rest}
-      >
-        {local.children}
-      </TooltipPrimitive.Content>
-    </TooltipPrimitive.Portal>
-  );
-};
-
-export const Tooltip = TooltipPrimitive;
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }

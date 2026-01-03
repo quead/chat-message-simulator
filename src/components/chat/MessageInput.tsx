@@ -1,145 +1,156 @@
-import type { Component } from 'solid-js';
-import { createSignal, Show } from 'solid-js';
-import { Smile, Paperclip, Send, Mic } from 'lucide-solid';
-import type { LayoutConfig } from '../../types';
-import { cn } from '../../lib/utils';
+import { Camera, ImagePlus, Mic, Plus, Send, Smile } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/utils/cn"
+import type { LayoutConfig } from "@/types/layout"
 
 interface MessageInputProps {
-  layout: LayoutConfig;
-  theme: 'light' | 'dark';
-  onSend?: (content: string) => void;
-  onTyping?: () => void;
-  placeholder?: string;
-  disabled?: boolean;
+  placeholder?: string
+  layout?: LayoutConfig
 }
 
-export const MessageInput: Component<MessageInputProps> = (props) => {
-  const [message, setMessage] = createSignal('');
-  const [isRecording, setIsRecording] = createSignal(false);
-  
-  const colors = () => props.theme === 'light' ? props.layout.lightColors : props.layout.darkColors;
-  
-  const inputStyles = () => ({
-    'background-color': colors().inputBackground,
-    'color': colors().inputText,
-    'border-color': colors().inputBorder,
-  });
-  
-  const handleKeyPress = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-  
-  const handleInput = (e: InputEvent) => {
-    const target = e.target as HTMLTextAreaElement;
-    setMessage(target.value);
-    props.onTyping?.();
-    
-    // Auto-resize textarea
-    target.style.height = 'auto';
-    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-  };
-  
-  const handleSend = () => {
-    const content = message().trim();
-    if (content && !props.disabled) {
-      props.onSend?.(content);
-      setMessage('');
-      
-      // Reset textarea height
-      const textarea = document.querySelector('textarea');
-      if (textarea) {
-        textarea.style.height = 'auto';
-      }
-    }
-  };
-  
-  const toggleRecording = () => {
-    setIsRecording(!isRecording());
-  };
-  
+export const MessageInput = ({ placeholder = "Message", layout }: MessageInputProps) => {
+  const isWhatsApp = layout?.id === "whatsapp"
+  const isIMessage = layout?.id === "imessage"
+  const isSnapchat = layout?.id === "snapchat"
+  const isMessenger = layout?.id === "messenger"
+  const iconClass =
+    isWhatsApp || isIMessage || isSnapchat || isMessenger ? "h-[18px] w-[18px]" : "h-4 w-4"
+  const iconButtonClass = cn(
+    "text-[var(--chat-muted)] hover:bg-white/10",
+    isWhatsApp && "h-8 w-8 rounded-full",
+    isIMessage && "h-8 w-8 rounded-full",
+    isSnapchat && "h-8 w-8 rounded-full text-[var(--chat-header-text)] hover:bg-black/5",
+    isMessenger && "h-8 w-8 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(0,132,255,0.1)]",
+  )
+  const inputPlaceholder = isIMessage
+    ? "iMessage"
+    : isSnapchat
+      ? "Chat"
+      : isMessenger
+        ? "Aa"
+        : placeholder
+
   return (
     <div
-      class="flex items-center gap-2 px-4 py-3 border-t"
-      style={{
-        'background-color': colors().background,
-        'border-color': colors().inputBorder,
-      }}
+      className={cn(
+        "relative z-10 flex items-center gap-2 border-t border-white/10 px-3 py-2",
+        isWhatsApp && "gap-1.5 border-black/5 px-2.5 py-2",
+        isIMessage && "border-black/5 px-3 py-2",
+        isSnapchat && "gap-2 border-black/5 px-3 py-2",
+        isMessenger && "gap-2 border-black/5 px-3 py-2",
+      )}
+      style={{ backgroundColor: "var(--chat-input)" }}
     >
-      {/* Emoji Button */}
-      <button
-        class="p-2 hover:bg-black/10 rounded-full transition-colors flex-shrink-0"
-        style={{ color: colors().inputText }}
-        aria-label="Add emoji"
-        disabled={props.disabled}
-      >
-        <Smile size={20} />
-      </button>
-      
-      {/* Attachment Button */}
-      <button
-        class="p-2 hover:bg-black/10 rounded-full transition-colors flex-shrink-0"
-        style={{ color: colors().inputText }}
-        aria-label="Attach file"
-        disabled={props.disabled}
-      >
-        <Paperclip size={20} />
-      </button>
-      
-      {/* Text Input */}
-      <div class="flex relative w-full">
-        <textarea
-          value={message()}
-          onInput={handleInput}
-          onKeyPress={handleKeyPress}
-          placeholder={props.placeholder || 'Type a message...'}
-          disabled={props.disabled}
-          rows={1}
-          class={cn(
-            'w-full px-4 py-2 rounded-full resize-none border focus:outline-none focus:ring-2',
-            'transition-shadow'
-          )}
-          style={{
-            ...inputStyles(),
-            'max-height': '120px',
-            'min-height': '40px',
-          }}
-        />
-      </div>
-      
-      {/* Send or Mic Button */}
-      <Show
-        when={message().trim().length > 0}
-        fallback={
-          <button
-            onClick={toggleRecording}
-            class={cn(
-              'p-2 rounded-full transition-colors flex-shrink-0',
-              isRecording() ? 'bg-red-500 text-white' : 'hover:bg-black/10'
-            )}
-            style={{ color: isRecording() ? 'white' : colors().inputText }}
-            aria-label={isRecording() ? 'Stop recording' : 'Record voice message'}
-            disabled={props.disabled}
-          >
-            <Mic size={20} />
-          </button>
-        }
-      >
-        <button
-          onClick={handleSend}
-          class="p-2 rounded-full transition-colors flex-shrink-0"
-          style={{ 
-            'background-color': colors().primary,
-            color: 'white' 
-          }}
-          aria-label="Send message"
-          disabled={props.disabled}
+      {isMessenger ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(iconButtonClass, "text-[var(--chat-accent)]")}
         >
-          <Send size={20} />
-        </button>
-      </Show>
+          <Plus className={iconClass} />
+        </Button>
+      ) : null}
+      {isSnapchat ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(iconButtonClass, "text-[var(--chat-header-text)]")}
+        >
+          <Plus className={iconClass} />
+        </Button>
+      ) : null}
+      {isIMessage ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(iconButtonClass, "text-[var(--chat-accent)]")}
+        >
+          <Plus className={iconClass} />
+        </Button>
+      ) : null}
+      {isWhatsApp ? (
+        <Button variant="ghost" size="icon" className={iconButtonClass}>
+          <Plus className={iconClass} />
+        </Button>
+      ) : !isIMessage && !isSnapchat && !isMessenger ? (
+        <Button variant="ghost" size="icon" className={iconButtonClass}>
+          <Smile className={iconClass} />
+        </Button>
+      ) : null}
+      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger ? (
+        <Button variant="ghost" size="icon" className={iconButtonClass}>
+          <ImagePlus className={iconClass} />
+        </Button>
+      ) : null}
+      <div
+        className={cn(
+          "flex-1 rounded-full px-4 py-2 text-sm",
+          isWhatsApp && "min-h-[36px] py-2 text-[0.95rem] shadow-sm",
+          isIMessage && "flex items-center gap-2 border py-2 text-[0.95rem]",
+          isSnapchat && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
+          isMessenger && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
+        )}
+        style={{
+          backgroundColor: "var(--chat-input-inner)",
+          color: "var(--chat-text)",
+          borderColor: isIMessage || isSnapchat || isMessenger ? "var(--chat-border)" : undefined,
+        }}
+      >
+        {isIMessage ? <Camera className={cn(iconClass, "text-[var(--chat-muted)]")} /> : null}
+        {isSnapchat ? <Smile className={cn(iconClass, "text-[var(--chat-muted)]")} /> : null}
+        {isMessenger ? <Smile className={cn(iconClass, "text-[var(--chat-muted)]")} /> : null}
+        <span className="text-[var(--chat-muted)]">{inputPlaceholder}</span>
+      </div>
+      {isWhatsApp ? (
+        <Button variant="ghost" size="icon" className={iconButtonClass}>
+          <Camera className={iconClass} />
+        </Button>
+      ) : null}
+      {isSnapchat ? (
+        <Button
+          size="icon"
+          className="h-10 w-10 rounded-full bg-[var(--chat-accent)] text-black shadow-sm hover:opacity-90"
+        >
+          <Camera className={iconClass} />
+        </Button>
+      ) : null}
+      {isMessenger ? (
+        <>
+          <Button variant="ghost" size="icon" className={iconButtonClass}>
+            <Camera className={iconClass} />
+          </Button>
+          <Button variant="ghost" size="icon" className={iconButtonClass}>
+            <ImagePlus className={iconClass} />
+          </Button>
+          <Button variant="ghost" size="icon" className={iconButtonClass}>
+            <Mic className={iconClass} />
+          </Button>
+        </>
+      ) : null}
+      {isWhatsApp ? (
+        <Button
+          size="icon"
+          className={cn(
+            "bg-[var(--chat-accent)] text-white hover:opacity-90",
+            "h-10 w-10 rounded-full",
+          )}
+        >
+          <Mic className={iconClass} />
+        </Button>
+      ) : isIMessage ? (
+        <Button variant="ghost" size="icon" className={iconButtonClass}>
+          <Mic className={iconClass} />
+        </Button>
+      ) : !isSnapchat && !isMessenger ? (
+        <>
+          <Button variant="ghost" size="icon" className={iconButtonClass}>
+            <Mic className={iconClass} />
+          </Button>
+          <Button size="icon" className="bg-[var(--chat-accent)] text-white hover:opacity-90">
+            <Send className={iconClass} />
+          </Button>
+        </>
+      ) : null}
     </div>
-  );
-};
+  )
+}

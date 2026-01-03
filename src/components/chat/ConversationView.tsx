@@ -1,151 +1,95 @@
-import type { Component } from 'solid-js';
-import { For, Show, createMemo } from 'solid-js';
-import { format, isToday, isYesterday, isSameDay } from 'date-fns';
-import { MessageBubble } from './MessageBubble';
-import type { Message, Participant, LayoutConfig } from '../../types';
-import { cn } from '../../lib/utils';
+import type { Message } from "@/types/message"
+import type { Participant } from "@/types/conversation"
+import type { LayoutConfig } from "@/types/layout"
+import { MessageBubble } from "@/components/chat/MessageBubble"
+import { formatDateSeparator } from "@/utils/helpers"
+import { cn } from "@/utils/cn"
 
 interface ConversationViewProps {
-  messages: Message[];
-  participants: Participant[];
-  layout: LayoutConfig;
-  theme: 'light' | 'dark';
-  showAvatars?: boolean;
-  showTimestamps?: boolean;
-  backgroundImage?: string;
-  backgroundColor?: string;
+  messages: Message[]
+  participants: Participant[]
+  layout: LayoutConfig
+  selfId: string
 }
 
-export const ConversationView: Component<ConversationViewProps> = (props) => {
-  const colors = () => props.theme === 'light' ? props.layout.lightColors : props.layout.darkColors;
-  
-  // Group messages by date for date separators
-  const messagesWithDates = createMemo(() => {
-    const grouped: Array<{ date?: Date; message?: Message; isDateSeparator?: boolean }> = [];
-    let lastDate: Date | null = null;
-    
-    props.messages.forEach((message) => {
-      const messageDate = message.timestamp;
-      
-      if (!lastDate || !isSameDay(lastDate, messageDate)) {
-        grouped.push({
-          date: messageDate,
-          isDateSeparator: true,
-        });
-        lastDate = messageDate;
-      }
-      
-      grouped.push({
-        message,
-        isDateSeparator: false,
-      });
-    });
-    
-    return grouped;
-  });
-  
-  const formatDateSeparator = (date: Date) => {
-    if (isToday(date)) return 'Today';
-    if (isYesterday(date)) return 'Yesterday';
-    return format(date, 'MMMM d, yyyy');
-  };
-  
-  const getParticipant = (senderId: string) => {
-    return props.participants.find(p => p.id === senderId);
-  };
-  
-  const containerStyles = () => {
-    const styles: Record<string, string> = {
-      'background-color': props.backgroundColor || colors().chatBackground,
-    };
-    
-    if (props.backgroundImage) {
-      styles['background-image'] = `url(${props.backgroundImage})`;
-      styles['background-size'] = 'cover';
-      styles['background-position'] = 'center';
-    }
-    
-    return styles;
-  };
-  
+export const ConversationView = ({
+  messages,
+  participants,
+  layout,
+  selfId,
+}: ConversationViewProps) => {
+  const isWhatsApp = layout.id === "whatsapp"
+  const isSnapchat = layout.id === "snapchat"
+  const isMessenger = layout.id === "messenger"
+  const isGroup = participants.length > 2
+  const dateBadgeClass = cn(
+    "mx-auto w-fit rounded-full px-2.5 py-0.5 text-[0.7rem]",
+    isWhatsApp
+      ? "bg-white/70 text-[0.65rem] font-medium text-[#54656f] shadow-[0_1px_0_rgba(0,0,0,0.08)]"
+      : isSnapchat
+        ? "bg-black/5 text-[0.6rem] font-medium text-[var(--chat-muted)]"
+        : isMessenger
+          ? "bg-black/5 text-[0.6rem] font-medium text-[var(--chat-muted)]"
+        : "bg-white/20 text-[var(--chat-muted)]",
+  )
+  const systemMessageClass = cn(
+    "mx-auto max-w-[70%] rounded-full px-4 py-2 text-center text-xs",
+    isWhatsApp
+      ? "bg-white/70 text-[#54656f] shadow-[0_1px_0_rgba(0,0,0,0.08)]"
+      : isSnapchat
+        ? "bg-black/5 text-[var(--chat-muted)]"
+        : isMessenger
+          ? "bg-black/5 text-[var(--chat-muted)]"
+        : "bg-white/15 text-[var(--chat-muted)]",
+  )
+
   return (
     <div
-      class={cn(
-        'flex-1 overflow-y-auto p-4',
-        props.layout.id === 'discord' && 'p-0',
-        props.layout.id === 'slack' && 'p-0'
+      className={cn(
+        "relative z-10 flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain",
+        isWhatsApp
+          ? "gap-1 px-3 py-4"
+          : isSnapchat
+            ? "gap-2 px-2.5 py-4"
+            : isMessenger
+              ? "gap-3 px-3 py-4"
+            : "gap-4 px-4 py-6",
       )}
-      style={containerStyles()}
     >
-      <div class="max-w-4xl mx-auto">
-        <For each={messagesWithDates()}>
-          {(item) => (
-            <Show
-              when={item.isDateSeparator}
-              fallback={
-                <Show when={item.message}>
-                  {(msg) => {
-                    const participant = getParticipant(msg().senderId);
-                    
-                    return (
-                      <Show
-                        when={msg().type === 'system'}
-                        fallback={
-                          <MessageBubble
-                            message={msg()}
-                            layout={props.layout}
-                            theme={props.theme}
-                            showAvatar={props.showAvatars}
-                            showTimestamp={props.showTimestamps}
-                            participantName={participant?.name}
-                            participantAvatar={participant?.avatar}
-                          />
-                        }
-                      >
-                        {/* System Message */}
-                        <div class="flex justify-center my-4">
-                          <div
-                            class="px-4 py-2 rounded-full text-xs text-center"
-                            style={{
-                              'background-color': colors().receivedBubble,
-                              color: colors().timestamp,
-                            }}
-                          >
-                            {msg().content}
-                          </div>
-                        </div>
-                      </Show>
-                    );
-                  }}
-                </Show>
-              }
-            >
-              {/* Date Separator */}
-              <div class="flex justify-center my-6">
-                <div
-                  class="px-3 py-1 rounded text-xs font-medium"
-                  style={{
-                    'background-color': colors().receivedBubble,
-                    color: colors().timestamp,
-                  }}
-                >
-                  {formatDateSeparator(item.date!)}
-                </div>
-              </div>
-            </Show>
-          )}
-        </For>
-        
-        {/* Empty State */}
-        <Show when={props.messages.length === 0}>
-          <div class="flex flex-col items-center justify-center h-full min-h-[400px]">
-            <div class="text-center" style={{ color: colors().timestamp }}>
-              <p class="text-lg font-medium mb-2">No messages yet</p>
-              <p class="text-sm opacity-75">Start a conversation!</p>
+      {messages.length === 0 ? (
+        <div className="mx-auto max-w-sm rounded-2xl border border-dashed border-white/40 bg-white/10 px-6 py-8 text-center text-sm text-[var(--chat-muted)]">
+          Start your story by adding messages in the builder.
+        </div>
+      ) : null}
+      {messages.map((message, index) => {
+        const sender = participants.find((participant) => participant.id === message.senderId)
+        const currentDate = formatDateSeparator(message.timestamp)
+        const previousDate =
+          index > 0 ? formatDateSeparator(messages[index - 1].timestamp) : ""
+        const showDate = currentDate !== previousDate
+
+        if (message.type === "system") {
+          return (
+            <div key={message.id} className="space-y-3">
+              {showDate ? <div className={dateBadgeClass}>{currentDate}</div> : null}
+              <div className={systemMessageClass}>{message.content}</div>
             </div>
+          )
+        }
+
+        return (
+          <div key={message.id} className={isWhatsApp ? "space-y-2" : "space-y-3"}>
+            {showDate ? <div className={dateBadgeClass}>{currentDate}</div> : null}
+            <MessageBubble
+              message={message}
+              sender={sender}
+              isOwn={message.senderId === selfId}
+              layout={layout}
+              isGroup={isGroup}
+            />
           </div>
-        </Show>
-      </div>
+        )
+      })}
     </div>
-  );
-};
+  )
+}

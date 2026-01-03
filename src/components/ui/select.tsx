@@ -1,181 +1,107 @@
-import type { JSX, ValidComponent } from "solid-js"
-import { splitProps } from "solid-js"
-
-import type { PolymorphicProps } from "@kobalte/core/polymorphic"
-import * as SelectPrimitive from "@kobalte/core/select"
-import { cva } from "class-variance-authority"
-
-import { cn } from "../../lib/utils"
+import * as React from "react"
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { Check, ChevronDown } from "lucide-react"
+import { cn } from "@/utils/cn"
 
 const Select = SelectPrimitive.Root
+const SelectGroup = SelectPrimitive.Group
 const SelectValue = SelectPrimitive.Value
-const SelectHiddenSelect = SelectPrimitive.HiddenSelect
 
-type SelectTriggerProps<T extends ValidComponent = "button"> =
-  SelectPrimitive.SelectTriggerProps<T> & {
-    class?: string | undefined
-    children?: JSX.Element
-  }
+const SelectTrigger = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      "flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      className,
+    )}
+    {...props}
+  >
+    {children}
+    <SelectPrimitive.Icon asChild>
+      <ChevronDown className="h-4 w-4 opacity-60" />
+    </SelectPrimitive.Icon>
+  </SelectPrimitive.Trigger>
+))
+SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
 
-const SelectTrigger = <T extends ValidComponent = "button">(
-  props: PolymorphicProps<T, SelectTriggerProps<T>>
-) => {
-  const [local, others] = splitProps(props as SelectTriggerProps, ["class", "children"])
-  return (
-    <SelectPrimitive.Trigger
-      class={cn(
-        "flex h-10 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        local.class
+const SelectContent = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
+>(({ className, children, position = "popper", ...props }, ref) => (
+  <SelectPrimitive.Portal>
+    <SelectPrimitive.Content
+      ref={ref}
+      className={cn(
+        "relative z-50 min-w-[8rem] overflow-hidden rounded-md border border-slate-200 bg-white text-slate-900 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        className,
       )}
-      {...others}
+      position={position}
+      {...props}
     >
-      {local.children}
-      <SelectPrimitive.Icon
-        as="svg"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="size-4 opacity-50"
-      >
-        <path d="M8 9l4 -4l4 4" />
-        <path d="M16 15l-4 4l-4 -4" />
-      </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
-  )
-}
+      <SelectPrimitive.Viewport className="p-1">
+        {children}
+      </SelectPrimitive.Viewport>
+    </SelectPrimitive.Content>
+  </SelectPrimitive.Portal>
+))
+SelectContent.displayName = SelectPrimitive.Content.displayName
 
-type SelectContentProps<T extends ValidComponent = "div"> =
-  SelectPrimitive.SelectContentProps<T> & { class?: string | undefined }
-
-const SelectContent = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SelectContentProps<T>>
-) => {
-  const [local, others] = splitProps(props as SelectContentProps, ["class"])
-  return (
-    <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        class={cn(
-          "relative z-50 min-w-32 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-80",
-          local.class
-        )}
-        {...others}
-      >
-        <SelectPrimitive.Listbox class="m-0 p-1" />
-      </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
-  )
-}
-
-type SelectItemProps<T extends ValidComponent = "li"> = SelectPrimitive.SelectItemProps<T> & {
-  class?: string | undefined
-  children?: JSX.Element
-}
-
-const SelectItem = <T extends ValidComponent = "li">(
-  props: PolymorphicProps<T, SelectItemProps<T>>
-) => {
-  const [local, others] = splitProps(props as SelectItemProps, ["class", "children"])
-  return (
-    <SelectPrimitive.Item
-      class={cn(
-        "relative mt-0 flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-        local.class
-      )}
-      {...others}
-    >
-      <SelectPrimitive.ItemIndicator class="absolute right-2 flex size-3.5 items-center justify-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="size-4"
-        >
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <path d="M5 12l5 5l10 -10" />
-        </svg>
+const SelectItem = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
+>(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-slate-100 focus:text-slate-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className,
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-4 w-4" />
       </SelectPrimitive.ItemIndicator>
-      <SelectPrimitive.ItemLabel>{local.children}</SelectPrimitive.ItemLabel>
-    </SelectPrimitive.Item>
-  )
-}
+    </span>
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+  </SelectPrimitive.Item>
+))
+SelectItem.displayName = SelectPrimitive.Item.displayName
 
-const labelVariants = cva(
-  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-  {
-    variants: {
-      variant: {
-        label: "data-[invalid]:text-destructive",
-        description: "font-normal text-muted-foreground",
-        error: "text-xs text-destructive"
-      }
-    },
-    defaultVariants: {
-      variant: "label"
-    }
-  }
-)
+const SelectLabel = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Label
+    ref={ref}
+    className={cn("px-2 py-1.5 text-xs font-semibold text-slate-500", className)}
+    {...props}
+  />
+))
+SelectLabel.displayName = SelectPrimitive.Label.displayName
 
-type SelectLabelProps<T extends ValidComponent = "label"> = SelectPrimitive.SelectLabelProps<T> & {
-  class?: string | undefined
-}
-
-const SelectLabel = <T extends ValidComponent = "label">(
-  props: PolymorphicProps<T, SelectLabelProps<T>>
-) => {
-  const [local, others] = splitProps(props as SelectLabelProps, ["class"])
-  return <SelectPrimitive.Label class={cn(labelVariants(), local.class)} {...others} />
-}
-
-type SelectDescriptionProps<T extends ValidComponent = "div"> =
-  SelectPrimitive.SelectDescriptionProps<T> & {
-    class?: string | undefined
-  }
-
-const SelectDescription = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SelectDescriptionProps<T>>
-) => {
-  const [local, others] = splitProps(props as SelectDescriptionProps, ["class"])
-  return (
-    <SelectPrimitive.Description
-      class={cn(labelVariants({ variant: "description" }), local.class)}
-      {...others}
-    />
-  )
-}
-
-type SelectErrorMessageProps<T extends ValidComponent = "div"> =
-  SelectPrimitive.SelectErrorMessageProps<T> & {
-    class?: string | undefined
-  }
-
-const SelectErrorMessage = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SelectErrorMessageProps<T>>
-) => {
-  const [local, others] = splitProps(props as SelectErrorMessageProps, ["class"])
-  return (
-    <SelectPrimitive.ErrorMessage
-      class={cn(labelVariants({ variant: "error" }), local.class)}
-      {...others}
-    />
-  )
-}
+const SelectSeparator = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Separator>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <SelectPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 my-1 h-px bg-slate-100", className)}
+    {...props}
+  />
+))
+SelectSeparator.displayName = SelectPrimitive.Separator.displayName
 
 export {
   Select,
-  SelectValue,
-  SelectHiddenSelect,
-  SelectTrigger,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectLabel,
-  SelectDescription,
-  SelectErrorMessage
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
 }

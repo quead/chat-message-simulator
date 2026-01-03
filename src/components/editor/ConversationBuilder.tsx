@@ -1,272 +1,224 @@
-import type { Component } from 'solid-js';
-import { createSignal, For, Show } from 'solid-js';
-import { Plus, Edit2, Trash2, Copy, GripVertical } from 'lucide-solid';
-import type { Message } from '../../types';
-import { MessageForm } from './MessageForm';
-import { Button } from '../ui/button';
-import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
-import { format } from 'date-fns';
+import { useState } from "react"
 import {
-  DragDropProvider,
-  DragDropSensors,
-  DragOverlay,
-  SortableProvider,
-  createSortable,
+  DndContext,
+  PointerSensor,
+  TouchSensor,
   closestCenter,
-} from '@thisbeyond/solid-dnd';
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { Copy, GripVertical, Pencil, Trash2 } from "lucide-react"
+import type { Message } from "@/types/message"
+import { useConversationStore } from "@/store/conversationStore"
+import { MessageForm } from "@/components/editor/MessageForm"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/utils/cn"
+import { formatTimestamp } from "@/utils/helpers"
 
-interface ConversationBuilderProps {
-  messages: Message[];
-  participants: Array<{ id: string; name: string; isCurrentUser: boolean }>;
-  onAddMessage: (message: Omit<Message, 'id'>) => void;
-  onEditMessage: (id: string, message: Partial<Message>) => void;
-  onDeleteMessage: (id: string) => void;
-  onDuplicateMessage: (id: string) => void;
-  onReorderMessages: (ids: string[]) => void;
-}
+const MessageRow = ({
+  message,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: {
+  message: Message
+  onEdit: () => void
+  onDuplicate: () => void
+  onDelete: () => void
+}) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
+    id: message.id,
+    animateLayoutChanges: () => false,
+  })
 
-const SortableMessageItem: Component<{
-  message: Message;
-  participantName: string;
-  isEditing: boolean;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onDelete: () => void;
-}> = (props) => {
-  const sortable = createSortable(props.message.id);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: "none",
+  }
 
   return (
     <div
-      ref={sortable.ref}
-      class="border rounded-lg p-4 hover:bg-accent/50 transition-all"
-      classList={{
-        'bg-accent/30': props.isEditing,
-        'opacity-25': sortable.isActiveDraggable,
-        'transition-transform': !!sortable.transform,
-      }}
-      style={{
-        transform: `translate3d(${sortable.transform?.x ?? 0}px, ${sortable.transform?.y ?? 0}px, 0)`,
-      }}
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm hover:bg-slate-50",
+        isDragging && "ring-2 ring-slate-900/20",
+      )}
     >
-      <div class="flex items-start justify-between gap-4">
-        <Button
-          {...sortable.dragActivators}
-          variant="ghost"
-          size="icon"
-          class="mt-1 cursor-grab active:cursor-grabbing touch-none h-6 w-6 p-0"
-          title="Drag to reorder"
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="cursor-grab" {...attributes} {...listeners}>
+            <GripVertical className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Drag to reorder</TooltipContent>
+      </Tooltip>
+      <div className="min-w-0 flex-1">
+        <div
+          className="text-sm font-medium text-slate-900 break-words whitespace-normal sm:truncate"
+          title={message.content}
         >
-          <GripVertical class="w-4 h-4 text-muted-foreground" />
-        </Button>
-
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1 flex-wrap">
-            <span class="font-semibold text-sm">
-              {props.participantName}
-            </span>
-            <span class="text-xs text-muted-foreground">
-              {format(new Date(props.message.timestamp), 'MMM d, HH:mm')}
-            </span>
-            <span
-              class="text-xs px-2 py-0.5 rounded-full"
-              classList={{
-                'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200': props.message.status === 'sent',
-                'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200': props.message.status === 'delivered' || props.message.status === 'read',
-                'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200': props.message.status === 'failed',
-                'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200': props.message.status === 'sending',
-              }}
-            >
-              {props.message.status}
-            </span>
-            <Show when={props.message.type !== 'text'}>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                {props.message.type}
-              </span>
-            </Show>
-          </div>
-          <p class="text-sm break-words whitespace-pre-wrap">
-            {props.message.content}
-          </p>
+          {message.content}
         </div>
-
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <Tooltip>
-            <TooltipTrigger
-              as={Button}
-              size="sm"
-              variant="ghost"
-              onClick={props.onEdit}
-              class="hover:bg-accent"
-            >
-              <Edit2 class="w-4 h-4" />
-            </TooltipTrigger>
-            <TooltipContent>Edit message</TooltipContent>
-          </Tooltip>
-          
-          <Tooltip>
-            <TooltipTrigger
-              as={Button}
-              size="sm"
-              variant="ghost"
-              onClick={props.onDuplicate}
-              class="hover:bg-accent"
-            >
-              <Copy class="w-4 h-4" />
-            </TooltipTrigger>
-            <TooltipContent>Duplicate message</TooltipContent>
-          </Tooltip>
-          
-          <Tooltip>
-            <TooltipTrigger
-              as={Button}
-              size="sm"
-              variant="ghost"
-              onClick={props.onDelete}
-              class="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 class="w-4 h-4" />
-            </TooltipTrigger>
-            <TooltipContent>Delete message</TooltipContent>
-          </Tooltip>
+        <div className="text-xs text-slate-500">
+          {message.type} - {formatTimestamp(message.timestamp)}
         </div>
       </div>
+      <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={onEdit}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Edit</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={onDuplicate}>
+              <Copy className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Duplicate</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={onDelete}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Delete</TooltipContent>
+        </Tooltip>
+      </div>
     </div>
-  );
-};
+  )
+}
 
-export const ConversationBuilder: Component<ConversationBuilderProps> = (props) => {
-  const [isAdding, setIsAdding] = createSignal(false);
-  const [editingId, setEditingId] = createSignal<string | null>(null);
+export const ConversationBuilder = () => {
+  const messages = useConversationStore((state) => state.conversation.messages)
+  const participants = useConversationStore((state) => state.conversation.participants)
+  const addMessage = useConversationStore((state) => state.addMessage)
+  const updateMessage = useConversationStore((state) => state.updateMessage)
+  const deleteMessage = useConversationStore((state) => state.deleteMessage)
+  const duplicateMessage = useConversationStore((state) => state.duplicateMessage)
+  const setMessages = useConversationStore((state) => state.setMessages)
 
-  const editingMessage = () => props.messages.find(m => m.id === editingId());
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
+  const [isAddOpen, setIsAddOpen] = useState(false)
 
-  const handleAdd = (message: Omit<Message, 'id'>) => {
-    props.onAddMessage(message);
-    setIsAdding(false);
-  };
-
-  const handleEdit = (message: Omit<Message, 'id'>) => {
-    if (editingId()) {
-      props.onEditMessage(editingId()!, message);
-      setEditingId(null);
-    }
-  };
-
-  const handleCancel = () => {
-    setIsAdding(false);
-    setEditingId(null);
-  };
-
-  const getParticipantName = (senderId: string) => {
-    return props.participants.find(p => p.id === senderId)?.name || 'Unknown';
-  };
-
-  const messageIds = () => props.messages.map(m => m.id);
-
-  const onDragEnd = ({ draggable, droppable }: any) => {
-    if (draggable && droppable) {
-      const currentItems = messageIds();
-      const fromIndex = currentItems.indexOf(draggable.id);
-      const toIndex = currentItems.indexOf(droppable.id);
-      
-      if (fromIndex !== toIndex) {
-        const updatedItems = currentItems.slice();
-        updatedItems.splice(toIndex, 0, ...updatedItems.splice(fromIndex, 1));
-        props.onReorderMessages(updatedItems);
-      }
-    }
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  )
 
   return (
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold">Messages ({props.messages.length})</h2>
-        <Button
-          onClick={() => setIsAdding(!isAdding())}
-          variant={isAdding() ? 'outline' : 'default'}
-          size="sm"
-          class="transition-all"
-        >
-          <Plus class="w-4 h-4 mr-2" />
-          {isAdding() ? 'Cancel' : 'Add Message'}
-        </Button>
-      </div>
-
-      {/* Add Message Form */}
-      <Show when={isAdding()}>
-        <div class="animate-in fade-in duration-200">
-          <MessageForm
-            participants={props.participants}
-            onSubmit={handleAdd}
-            onCancel={handleCancel}
-          />
+    <TooltipProvider>
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Conversation Builder</h3>
+          <p className="text-xs text-slate-500">Add, reorder, and refine each message.</p>
         </div>
-      </Show>
 
-      {/* Edit Message Form */}
-      <Show when={editingId()}>
-        <div class="animate-in fade-in duration-200">
-          <MessageForm
-            participants={props.participants}
-            editingMessage={editingMessage()}
-            onSubmit={handleEdit}
-            onCancel={handleCancel}
-          />
-        </div>
-      </Show>
-
-      {/* Messages List */}
-      <div class="space-y-2">
-        <Show
-          when={props.messages.length > 0}
-          fallback={
-            <div class="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/20">
-              <p class="text-lg font-medium mb-1">No messages yet</p>
-              <p class="text-sm">Click "Add Message" to get started</p>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Messages</h4>
+            <span className="text-xs text-slate-500">{messages.length} total</span>
+          </div>
+          {messages.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
+              No messages yet. Add the first entry above.
             </div>
-          }
-        >
-          <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
-            <DragDropSensors />
-            <SortableProvider ids={messageIds()}>
-              <For each={props.messages}>
-                {(message) => (
-                  <SortableMessageItem
-                    message={message}
-                    participantName={getParticipantName(message.senderId)}
-                    isEditing={editingId() === message.id}
-                    onEdit={() => setEditingId(message.id)}
-                    onDuplicate={() => props.onDuplicateMessage(message.id)}
-                    onDelete={() => props.onDeleteMessage(message.id)}
-                  />
-                )}
-              </For>
-            </SortableProvider>
-            <DragOverlay>
-              {(draggable: any) => {
-                const message = props.messages.find(m => m.id === draggable.id);
-                return message ? (
-                  <div class="border rounded-lg p-4 bg-background shadow-lg opacity-90">
-                    <div class="flex items-start gap-4">
-                      <GripVertical class="w-4 h-4 text-muted-foreground mt-1" />
-                      <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-1">
-                          <span class="font-semibold text-sm">
-                            {getParticipantName(message.senderId)}
-                          </span>
-                        </div>
-                        <p class="text-sm break-words line-clamp-2">
-                          {message.content}
-                        </p>
+          ) : null}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={({ active, over }) => {
+              if (!over || active.id === over.id) return
+              const oldIndex = messages.findIndex((message) => message.id === active.id)
+              const newIndex = messages.findIndex((message) => message.id === over.id)
+              if (oldIndex === -1 || newIndex === -1) return
+              setMessages(arrayMove(messages, oldIndex, newIndex))
+            }}
+          >
+            <SortableContext
+              items={messages.map((message) => message.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {messages.map((message) => (
+                  <div key={message.id} className="space-y-2">
+                    <MessageRow
+                      message={message}
+                      onEdit={() => {
+                        setEditingId(message.id)
+                        setIsAdvancedOpen(false)
+                      }}
+                      onDuplicate={() => duplicateMessage(message.id)}
+                      onDelete={() => deleteMessage(message.id)}
+                    />
+                    {editingId === message.id ? (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <MessageForm
+                          key={message.id}
+                          participants={participants}
+                          initial={message}
+                          compact
+                          advancedOpen={isAdvancedOpen}
+                          onToggleAdvanced={() => setIsAdvancedOpen((prev) => !prev)}
+                          onSubmit={(payload) => {
+                            updateMessage(message.id, payload)
+                            setEditingId(null)
+                          }}
+                          onCancel={() => setEditingId(null)}
+                          submitLabel="Save changes"
+                        />
                       </div>
-                    </div>
+                    ) : null}
                   </div>
-                ) : null;
-              }}
-            </DragOverlay>
-          </DragDropProvider>
-        </Show>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+        <Separator />
+        <div className="space-y-3">
+          {isAddOpen ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <MessageForm
+                key="new"
+                participants={participants}
+                initial={null}
+                compact
+                resetOnSubmit
+                onSubmit={(payload) => {
+                  addMessage(payload)
+                }}
+                submitLabel="Add message"
+              />
+            </div>
+          ) : null}
+          <Button
+            type="button"
+            className="w-full"
+            variant={isAddOpen ? "outline" : "default"}
+            onClick={() => setIsAddOpen((prev) => !prev)}
+          >
+            {isAddOpen ? "Hide add message" : "Add message"}
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-};
+    </TooltipProvider>
+  )
+}
+
+

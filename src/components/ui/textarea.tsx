@@ -1,18 +1,18 @@
-import type { JSX } from "solid-js";
-import { splitProps } from "solid-js";
-import { cn } from "../../lib/utils";
+import * as React from "react"
+import { cn } from "@/utils/cn"
 
-export interface TextareaProps extends JSX.TextareaHTMLAttributes<HTMLTextAreaElement> {}
-
-export const Textarea: (props: TextareaProps) => JSX.Element = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return (
+const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentPropsWithoutRef<"textarea">>(
+  ({ className, ...props }, ref) => (
     <textarea
-      class={cn(
-        "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        local.class
+      ref={ref}
+      className={cn(
+        "flex min-h-[90px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        className,
       )}
-      {...others}
+      {...props}
     />
-  );
-};
+  ),
+)
+Textarea.displayName = "Textarea"
+
+export { Textarea }

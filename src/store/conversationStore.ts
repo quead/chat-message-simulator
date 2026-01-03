@@ -1,348 +1,387 @@
-import { createStore } from 'solid-js/store';
-import { createEffect } from 'solid-js';
-import type { 
-  Conversation, 
-  Message, 
-  Participant, 
-  LayoutType,
-  ConversationMetadata,
-  ExportSettings
-} from '../types';
-import { AVAILABLE_LAYOUTS, DEFAULT_LAYOUT } from '../constants/layouts';
+import { create } from "zustand"
+import { createJSONStorage, persist } from "zustand/middleware"
+import { defaultLayoutId } from "../constants/layouts"
+import type { Conversation, Participant } from "../types/conversation"
+import type { Message, MessageStatus, MessageType } from "../types/message"
+import type { LayoutId, ThemeId } from "../types/layout"
+import { generateId } from "../utils/helpers"
 
-// UI State interface
-interface UIState {
-  activeTab: 'messages' | 'participants' | 'export';
-  isExporting: boolean;
-  isSidebarOpen: boolean;
-  exportPanelOpen: boolean;
-  zoomLevel: number;
-  showChrome: boolean;
+export type ExportFormat = "png" | "jpeg"
+
+export interface ExportSettings {
+  presetId: string
+  width: number
+  height: number
+  scale: number
+  format: ExportFormat
+  quality: number
+  background: string
+  transparent: boolean
 }
 
-// Default UI state
-const createDefaultUIState = (): UIState => ({
-  activeTab: 'messages',
-  isExporting: false,
-  isSidebarOpen: true,
-  exportPanelOpen: false,
-  zoomLevel: 100,
-  showChrome: true,
-});
+export interface UiState {
+  activeView: "editor" | "preview"
+  showChrome: boolean
+  zoom: number
+  isSidebarOpen: boolean
+  activePanel: "messages" | "participants" | "settings" | "export"
+  autoFit: boolean
+}
 
-// Default export settings
-const createDefaultExportSettings = (): ExportSettings => ({
+interface ConversationStore {
+  conversation: Conversation
+  layoutId: LayoutId
+  themeId: ThemeId
+  activeParticipantId: string
+  backgroundImageUrl: string
+  backgroundImageOpacity: number
+  backgroundColor: string
+  exportSettings: ExportSettings
+  ui: UiState
+  setLayout: (layoutId: LayoutId) => void
+  setTheme: (themeId: ThemeId) => void
+  setActiveParticipant: (participantId: string) => void
+  setBackgroundImageUrl: (url: string) => void
+  setBackgroundImageOpacity: (opacity: number) => void
+  clearBackgroundImage: () => void
+  setBackgroundColor: (color: string) => void
+  addParticipant: (participant: Omit<Participant, "id">) => void
+  updateParticipant: (participantId: string, updates: Partial<Participant>) => void
+  removeParticipant: (participantId: string) => void
+  setGroupName: (groupName: string) => void
+  addMessage: (payload: {
+    senderId: string
+    content: string
+    timestamp: string
+    type: MessageType
+    status: MessageStatus
+  }) => void
+  updateMessage: (messageId: string, updates: Partial<Message>) => void
+  deleteMessage: (messageId: string) => void
+  duplicateMessage: (messageId: string) => void
+  setMessages: (messages: Message[]) => void
+  setExportSettings: (settings: Partial<ExportSettings>) => void
+  setUi: (updates: Partial<UiState>) => void
+  resetConversation: () => void
+  loadConversation: (conversation: Conversation) => void
+  saveSnapshot: () => void
+  clearSnapshot: () => void
+}
+
+const defaultParticipants: Participant[] = [
+  {
+    id: "p1",
+    name: "Avery",
+    status: "online",
+    color: "#22c55e",
+    avatarUrl: "https://i.pravatar.cc/100?img=12",
+  },
+  {
+    id: "p2",
+    name: "Jordan",
+    status: "typing",
+    color: "#0b84ff",
+    avatarUrl: "https://i.pravatar.cc/100?img=32",
+  },
+]
+
+const buildDefaultConversation = (): Conversation => {
+  const now = new Date().toISOString()
+  return {
+    id: "conv-1",
+    participants: defaultParticipants,
+    messages: [
+      {
+        id: "m1",
+        senderId: "p1",
+        content: "Morning! I mocked up the chat simulator layout.",
+        timestamp: now,
+        type: "text",
+        status: "read",
+      },
+      {
+        id: "m2",
+        senderId: "p2",
+        content: "Nice. Can we preview it in WhatsApp and iMessage styles?",
+        timestamp: now,
+        type: "text",
+        status: "read",
+      },
+      {
+        id: "m3",
+        senderId: "p1",
+        content: "Yep, I wired both themes and an export panel.",
+        timestamp: now,
+        type: "text",
+        status: "delivered",
+      },
+      {
+        id: "m4",
+        senderId: "p2",
+        content: "System: Export is locked to 2x by default.",
+        timestamp: now,
+        type: "system",
+        status: "sent",
+      },
+    ],
+    metadata: {
+      createdAt: now,
+      updatedAt: now,
+    },
+  }
+}
+
+const defaultExportSettings: ExportSettings = {
+  presetId: "iphone-14-pro",
   width: 393,
   height: 852,
-  quality: 2,
-  format: 'png',
-  backgroundColor: '#ffffff',
-  devicePreset: 'iPhone 14 Pro',
-});
+  scale: 2,
+  format: "png",
+  quality: 0.95,
+  background: "#ffffff",
+  transparent: false,
+}
 
-// Initialize default conversation
-const createDefaultConversation = (): Conversation => ({
-  id: crypto.randomUUID(),
-  messages: [],
-  participants: [
+const defaultUiState: UiState = {
+  activeView: "editor",
+  showChrome: true,
+  zoom: 1,
+  isSidebarOpen: true,
+  activePanel: "messages",
+  autoFit: true,
+}
+
+const STORAGE_KEY = "chat-sim-storage"
+
+export const useConversationStore = create<ConversationStore>()(
+  persist(
+    (set, get) => ({
+      conversation: buildDefaultConversation(),
+      layoutId: defaultLayoutId,
+      themeId: "light",
+      activeParticipantId: defaultParticipants[0].id,
+      backgroundImageUrl: "",
+      backgroundImageOpacity: 0.35,
+      backgroundColor: "",
+      exportSettings: defaultExportSettings,
+      ui: defaultUiState,
+      setLayout: (layoutId) => set({ layoutId }),
+      setTheme: (themeId) => set({ themeId }),
+      setActiveParticipant: (participantId) => set({ activeParticipantId: participantId }),
+      setBackgroundImageUrl: (url) => set({ backgroundImageUrl: url }),
+      setBackgroundImageOpacity: (opacity) => set({ backgroundImageOpacity: opacity }),
+      clearBackgroundImage: () => set({ backgroundImageUrl: "" }),
+      setBackgroundColor: (color) => set({ backgroundColor: color }),
+      addParticipant: (participant) =>
+        set((state) => {
+          const newParticipant: Participant = { id: generateId(), ...participant }
+          const nextParticipants = [...state.conversation.participants, newParticipant]
+          const groupName =
+            nextParticipants.length > 2
+              ? state.conversation.groupName ?? "Group Chat"
+              : undefined
+          return {
+            conversation: {
+              ...state.conversation,
+              participants: nextParticipants,
+              groupName,
+              metadata: {
+                ...state.conversation.metadata,
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          }
+        }),
+      updateParticipant: (participantId, updates) =>
+        set((state) => ({
+          conversation: {
+            ...state.conversation,
+            participants: state.conversation.participants.map((participant) =>
+              participant.id === participantId
+                ? { ...participant, ...updates }
+                : participant,
+            ),
+            metadata: {
+              ...state.conversation.metadata,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })),
+      removeParticipant: (participantId) =>
+        set((state) => {
+          const remaining = state.conversation.participants.filter(
+            (participant) => participant.id !== participantId,
+          )
+          const activeParticipantId =
+            state.activeParticipantId === participantId && remaining.length
+              ? remaining[0].id
+              : state.activeParticipantId
+          const groupName =
+            remaining.length > 2 ? state.conversation.groupName ?? "Group Chat" : undefined
+          return {
+            activeParticipantId,
+            conversation: {
+              ...state.conversation,
+              participants: remaining,
+              messages: state.conversation.messages.filter(
+                (message) => message.senderId !== participantId,
+              ),
+              groupName,
+              metadata: {
+                ...state.conversation.metadata,
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          }
+        }),
+      setGroupName: (groupName) =>
+        set((state) => ({
+          conversation: {
+            ...state.conversation,
+            groupName: state.conversation.participants.length > 2 ? groupName : undefined,
+            metadata: {
+              ...state.conversation.metadata,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })),
+      addMessage: (payload) =>
+        set((state) => ({
+          conversation: {
+            ...state.conversation,
+            messages: [
+              ...state.conversation.messages,
+              {
+                id: generateId(),
+                ...payload,
+              },
+            ],
+            metadata: {
+              ...state.conversation.metadata,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })),
+      updateMessage: (messageId, updates) =>
+        set((state) => ({
+          conversation: {
+            ...state.conversation,
+            messages: state.conversation.messages.map((message) =>
+              message.id === messageId ? { ...message, ...updates } : message,
+            ),
+            metadata: {
+              ...state.conversation.metadata,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })),
+      deleteMessage: (messageId) =>
+        set((state) => ({
+          conversation: {
+            ...state.conversation,
+            messages: state.conversation.messages.filter((message) => message.id !== messageId),
+            metadata: {
+              ...state.conversation.metadata,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })),
+      duplicateMessage: (messageId) =>
+        set((state) => {
+          const message = state.conversation.messages.find((entry) => entry.id === messageId)
+          if (!message) return state
+          const copy: Message = {
+            ...message,
+            id: generateId(),
+            timestamp: new Date().toISOString(),
+          }
+          return {
+            conversation: {
+              ...state.conversation,
+              messages: [...state.conversation.messages, copy],
+              metadata: {
+                ...state.conversation.metadata,
+                updatedAt: new Date().toISOString(),
+              },
+            },
+          }
+        }),
+      setMessages: (messages) =>
+        set((state) => ({
+          conversation: {
+            ...state.conversation,
+            messages,
+            metadata: {
+              ...state.conversation.metadata,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        })),
+      setExportSettings: (settings) =>
+        set((state) => ({
+          exportSettings: {
+            ...state.exportSettings,
+            ...settings,
+          },
+        })),
+      setUi: (updates) => set((state) => ({ ui: { ...state.ui, ...updates } })),
+      resetConversation: () =>
+        set({
+          conversation: buildDefaultConversation(),
+          activeParticipantId: defaultParticipants[0].id,
+          layoutId: defaultLayoutId,
+          themeId: "light",
+        }),
+      loadConversation: (conversation) => {
+        const legacyTitle = (conversation as { title?: string }).title
+        const groupName =
+          conversation.participants.length > 2
+            ? conversation.groupName ?? legacyTitle ?? "Group Chat"
+            : undefined
+        set({
+          conversation: {
+            ...conversation,
+            groupName,
+          },
+          activeParticipantId: conversation.participants[0]?.id ?? "",
+        })
+      },
+      saveSnapshot: () => {
+        const snapshot = get()
+        try {
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              conversation: snapshot.conversation,
+              layoutId: snapshot.layoutId,
+              themeId: snapshot.themeId,
+              exportSettings: snapshot.exportSettings,
+            }),
+          )
+        } catch (error) {
+          console.error("Failed to save snapshot", error)
+        }
+      },
+      clearSnapshot: () => {
+        try {
+          localStorage.removeItem(STORAGE_KEY)
+        } catch (error) {
+          console.error("Failed to clear snapshot", error)
+        }
+      },
+    }),
     {
-      id: 'user-1',
-      name: 'You',
-      isCurrentUser: true,
-      avatarColor: '#0084FF',
-      status: 'online',
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        conversation: state.conversation,
+        layoutId: state.layoutId,
+        themeId: state.themeId,
+        backgroundImageUrl: state.backgroundImageUrl,
+        backgroundImageOpacity: state.backgroundImageOpacity,
+        backgroundColor: state.backgroundColor,
+        exportSettings: state.exportSettings,
+      }),
     },
-    {
-      id: 'user-2',
-      name: 'Contact',
-      avatarColor: '#25D366',
-      status: 'online',
-    },
-  ],
-  metadata: {
-    title: 'New Conversation',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    layout: DEFAULT_LAYOUT,
-    theme: 'light',
-    showTimestamps: true,
-    showAvatars: true,
-    showReadReceipts: true,
-    groupChat: false,
-  },
-});
-
-// Create store
-const [conversationStore, setConversationStore] = createStore({
-  conversation: createDefaultConversation(),
-  uiState: createDefaultUIState(),
-  exportSettings: createDefaultExportSettings(),
-  autoSave: true,
-});
-
-// Storage key
-const STORAGE_KEY = 'chat-simulator-conversation';
-
-// Load from localStorage
-const loadFromStorage = () => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const data = JSON.parse(saved);
-      // Convert date strings back to Date objects
-      data.metadata.createdAt = new Date(data.metadata.createdAt);
-      data.metadata.updatedAt = new Date(data.metadata.updatedAt);
-      data.messages = data.messages.map((msg: Message) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-        editedAt: msg.editedAt ? new Date(msg.editedAt) : undefined,
-        deletedAt: msg.deletedAt ? new Date(msg.deletedAt) : undefined,
-      }));
-      data.participants = data.participants.map((p: Participant) => ({
-        ...p,
-        lastSeen: p.lastSeen ? new Date(p.lastSeen) : undefined,
-      }));
-      setConversationStore('conversation', data);
-    }
-  } catch (error) {
-    console.error('Failed to load conversation from storage:', error);
-  }
-};
-
-// Save to localStorage
-const saveToStorage = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(conversationStore.conversation));
-  } catch (error) {
-    console.error('Failed to save conversation to storage:', error);
-  }
-};
-
-// Auto-save effect - tracks changes to the conversation object
-createEffect(() => {
-  // Access the conversation object to track it
-  const conv = conversationStore.conversation;
-  // Trigger save only if autoSave is enabled
-  if (conversationStore.autoSave) {
-    // Small delay to batch multiple rapid changes
-    setTimeout(() => {
-      saveToStorage();
-    }, 100);
-  }
-});
-
-// Load on initialization
-loadFromStorage();
-
-// Store actions
-export const conversationActions = {
-  // Messages
-  addMessage: (message: Omit<Message, 'id'>) => {
-    const newMessage: Message = {
-      ...message,
-      id: crypto.randomUUID(),
-    };
-    setConversationStore('conversation', 'messages', (messages) => [...messages, newMessage]);
-    setConversationStore('conversation', 'metadata', 'updatedAt', new Date());
-  },
-
-  updateMessage: (id: string, updates: Partial<Message>) => {
-    setConversationStore(
-      'conversation',
-      'messages',
-      (msg) => msg.id === id,
-      (msg) => ({ ...msg, ...updates })
-    );
-    setConversationStore('conversation', 'metadata', 'updatedAt', new Date());
-  },
-
-  deleteMessage: (id: string) => {
-    setConversationStore(
-      'conversation',
-      'messages',
-      (messages) => messages.filter((msg) => msg.id !== id)
-    );
-    setConversationStore('conversation', 'metadata', 'updatedAt', new Date());
-  },
-  
-  reorderMessages: (ids: string[]) => {
-    setConversationStore('conversation', 'messages', (msgs) => {
-      const messageMap = new Map(msgs.map(m => [m.id, m]));
-      return ids.map(id => messageMap.get(id)!).filter(Boolean);
-    });
-    setConversationStore('conversation', 'metadata', 'updatedAt', new Date());
-  },
-
-  clearMessages: () => {
-    setConversationStore('conversation', 'messages', []);
-    setConversationStore('conversation', 'metadata', 'updatedAt', new Date());
-  },
-
-  // Participants
-  addParticipant: (participant: Omit<Participant, 'id'>) => {
-    const newParticipant: Participant = {
-      ...participant,
-      id: crypto.randomUUID(),
-    };
-    setConversationStore('conversation', 'participants', (participants) => [
-      ...participants,
-      newParticipant,
-    ]);
-  },
-
-  updateParticipant: (id: string, updates: Partial<Participant>) => {
-    setConversationStore(
-      'conversation',
-      'participants',
-      (p) => p.id === id,
-      (p) => ({ ...p, ...updates })
-    );
-  },
-
-  deleteParticipant: (id: string) => {
-    setConversationStore(
-      'conversation',
-      'participants',
-      (participants) => participants.filter((p) => p.id !== id)
-    );
-  },
-
-  // Layout & Theme
-  setLayout: (layout: LayoutType) => {
-    setConversationStore('conversation', 'metadata', 'layout', layout);
-  },
-
-  setTheme: (theme: 'light' | 'dark') => {
-    setConversationStore('conversation', 'metadata', 'theme', theme);
-  },
-
-  toggleTheme: () => {
-    setConversationStore(
-      'conversation',
-      'metadata',
-      'theme',
-      (theme) => (theme === 'light' ? 'dark' : 'light')
-    );
-  },
-
-  // Metadata
-  updateMetadata: (updates: Partial<ConversationMetadata>) => {
-    setConversationStore('conversation', 'metadata', (metadata) => ({
-      ...metadata,
-      ...updates,
-      updatedAt: new Date(),
-    }));
-  },
-
-  // Storage
-  resetConversation: () => {
-    setConversationStore('conversation', createDefaultConversation());
-    localStorage.removeItem(STORAGE_KEY);
-  },
-
-  loadConversation: (conversation: Conversation) => {
-    setConversationStore('conversation', conversation);
-  },
-
-  toggleAutoSave: () => {
-    setConversationStore('autoSave', (auto) => !auto);
-  },
-
-  // UI State
-  setActiveTab: (tab: 'messages' | 'participants' | 'export') => {
-    setConversationStore('uiState', 'activeTab', tab);
-  },
-
-  setIsExporting: (isExporting: boolean) => {
-    setConversationStore('uiState', 'isExporting', isExporting);
-  },
-
-  toggleSidebar: () => {
-    setConversationStore('uiState', 'isSidebarOpen', (open) => !open);
-  },
-
-  toggleExportPanel: () => {
-    setConversationStore('uiState', 'exportPanelOpen', (open) => !open);
-  },  
-  setZoomLevel: (level: number) => {
-    const clampedLevel = Math.max(50, Math.min(200, level));
-    setConversationStore('uiState', 'zoomLevel', clampedLevel);
-  },
-  
-  toggleChrome: () => {
-    setConversationStore('uiState', 'showChrome', (prev) => !prev);
-  },
-  // Export Settings
-  updateExportSettings: (updates: Partial<ExportSettings>) => {
-    setConversationStore('exportSettings', (settings) => ({
-      ...settings,
-      ...updates,
-    }));
-  },
-
-  resetExportSettings: () => {
-    setConversationStore('exportSettings', createDefaultExportSettings());
-  },
-
-  // Conversation Management
-  saveConversationToFile: () => {
-    const data = JSON.stringify(conversationStore.conversation, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `conversation-${conversationStore.conversation.id}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  },
-
-  loadConversationFromFile: async (file: File) => {
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      // Convert date strings back to Date objects
-      data.metadata.createdAt = new Date(data.metadata.createdAt);
-      data.metadata.updatedAt = new Date(data.metadata.updatedAt);
-      data.messages = data.messages.map((msg: Message) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-        editedAt: msg.editedAt ? new Date(msg.editedAt) : undefined,
-        deletedAt: msg.deletedAt ? new Date(msg.deletedAt) : undefined,
-      }));
-      data.participants = data.participants.map((p: Participant) => ({
-        ...p,
-        lastSeen: p.lastSeen ? new Date(p.lastSeen) : undefined,
-      }));
-      
-      setConversationStore('conversation', data);
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to load conversation from file:', error);
-      return { success: false, error: 'Invalid conversation file' };
-    }
-  },
-
-  clearAllData: () => {
-    setConversationStore('conversation', createDefaultConversation());
-    setConversationStore('uiState', createDefaultUIState());
-    setConversationStore('exportSettings', createDefaultExportSettings());
-    localStorage.removeItem(STORAGE_KEY);
-  },
-
-  saveToLocalStorage: () => {
-    saveToStorage();
-  },
-};
-
-// Computed values
-export const getLayoutConfig = () => {
-  const layout = conversationStore.conversation.metadata.layout;
-  return AVAILABLE_LAYOUTS.find((l) => l.id === layout) || AVAILABLE_LAYOUTS[0];
-};
-
-export const getCurrentUser = () => {
-  return conversationStore.conversation.participants.find((p) => p.isCurrentUser);
-};
-
-export { conversationStore };
+  ),
+)

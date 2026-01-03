@@ -1,28 +1,97 @@
-## Usage
+# 💬 Chat Message Simulator
 
-```bash
-$ npm install # or pnpm install or yarn install
+> A powerful React application for creating, customizing, and exporting high-quality chat conversation mockups.
+
+![Project Banner](https://placehold.co/1200x400/e2e8f0/1e293b?text=Chat+Message+Simulator)
+
+## ✨ Features
+
+- **🎨 Multiple Layouts**: Authentic recreations of popular messaging apps including WhatsApp, iMessage, Snapchat, and Messenger.
+- **🌓 Light & Dark Modes**: Full support for light and dark themes across all layouts.
+- **⚡ Live Preview**: Real-time rendering of your conversation as you build it.
+- **🖼️ High-Quality Export**: Download your creations as PNG or JPEG images with custom scaling.
+- **👥 Participant Management**: Add multiple users with custom avatars and names.
+- **📱 Responsive Design**: Works seamlessly on desktop and mobile devices.
+- **🖱️ Drag & Drop**: Reorder messages easily (powered by dnd-kit).
+
+## 📱 Supported Platforms
+
+| Platform | Light Mode | Dark Mode |
+|----------|------------|-----------|
+| **WhatsApp** | ✅ | ✅ |
+| **iMessage** | ✅ | ✅ |
+| **Messenger** | ✅ | ✅ |
+| **Snapchat** | ✅ | ✅ |
+
+## 🛠️ Tech Stack
+
+Built with modern web technologies for performance and developer experience:
+
+- **Framework**: [React 19](https://react.dev/)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
+- **UI Components**: [Radix UI](https://www.radix-ui.com/) & [Lucide React](https://lucide.dev/)
+- **Export**: [html-to-image](https://github.com/bubkoo/html-to-image)
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher recommended)
+- npm, yarn, or pnpm
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/chat-message-simulator.git
+   cd chat-message-simulator
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. **Start the development server**
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
+
+4. Open your browser and navigate to `http://localhost:5173`
+
+## 📂 Project Structure
+
+```
+src/
+├── components/
+│   ├── chat/          # Chat visualization components
+│   ├── editor/        # Editor interface components
+│   ├── export/        # Export functionality
+│   ├── layout/        # App layout and navigation
+│   └── ui/            # Reusable UI components (Radix + Tailwind)
+├── constants/         # Layout definitions and presets
+├── layouts/           # Platform-specific layout wrappers
+├── store/             # Global state (Zustand)
+└── utils/             # Helper functions
 ```
 
-### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
+## 🤝 Contributing
 
-## Available Scripts
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-In the project directory, you can run:
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-### `npm run dev`
+## 📄 License
 
-Runs the app in the development mode.<br>
-Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
-
-### `npm run build`
-
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
-
-## Deployment
-
-Learn more about deploying your application with the [documentations](https://vite.dev/guide/static-deploy.html)
+This project is licensed under the Apache License 2.0 License - see the LICENSE file for details.

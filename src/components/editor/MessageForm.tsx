@@ -1,166 +1,163 @@
-import type { Component } from 'solid-js';
-import { createSignal, Show, For } from 'solid-js';
-import { Calendar, Send, UserCircle2, MessageSquare } from 'lucide-solid';
-import type { Message, MessageType, MessageStatus } from '../../types';
-import { Label } from '../ui/label';
-import { Button } from '../ui/button';
-import { Textarea } from '../ui/textarea';
+import { useState } from "react"
+import type { Message } from "@/types/message"
+import type { Participant } from "@/types/conversation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/utils/cn"
 
 interface MessageFormProps {
-  participants: Array<{ id: string; name: string; isCurrentUser: boolean }>;
-  onSubmit: (message: Omit<Message, 'id'>) => void;
-  editingMessage?: Message;
-  onCancel?: () => void;
+  participants: Participant[]
+  initial?: Message | null
+  compact?: boolean
+  resetOnSubmit?: boolean
+  submitLabel?: string
+  advancedOpen?: boolean
+  onToggleAdvanced?: () => void
+  onSubmit: (payload: {
+    senderId: string
+    content: string
+    timestamp: string
+    type: Message["type"]
+    status: Message["status"]
+  }) => void
+  onCancel?: () => void
 }
 
-export const MessageForm: Component<MessageFormProps> = (props) => {
-  const [content, setContent] = createSignal(props.editingMessage?.content || '');
-  const [senderId, setSenderId] = createSignal(
-    props.editingMessage?.senderId || props.participants.find(p => p.isCurrentUser)?.id || ''
-  );
-  const [messageType, setMessageType] = createSignal<MessageType>(
-    props.editingMessage?.type || 'text'
-  );
-  const [status, setStatus] = createSignal<MessageStatus>(
-    props.editingMessage?.status || 'delivered'
-  );
-  const [timestamp, setTimestamp] = createSignal(
-    props.editingMessage?.timestamp
-      ? new Date(props.editingMessage.timestamp).toISOString().slice(0, 16)
-      : new Date().toISOString().slice(0, 16)
-  );
+const toInputValue = (iso: string) => {
+  const date = new Date(iso)
+  const offset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
 
-  const handleSubmit = (e: Event) => {
-    e.preventDefault();
-    
-    if (!content().trim() || !senderId()) return;
+const fromInputValue = (value: string) => new Date(value).toISOString()
 
-    const selectedParticipant = props.participants.find(p => p.id === senderId());
-    
-    props.onSubmit({
-      senderId: senderId(),
-      content: content().trim(),
-      timestamp: new Date(timestamp()),
-      type: messageType(),
-      status: status(),
-      alignment: selectedParticipant?.isCurrentUser ? 'right' : 'left',
-    });
-
-    // Reset form if not editing
-    if (!props.editingMessage) {
-      setContent('');
-      setTimestamp(new Date().toISOString().slice(0, 16));
-    }
-  };
-
-  const messageTypes: MessageType[] = ['text', 'system', 'image', 'video', 'audio', 'file'];
-  const messageStatuses: MessageStatus[] = ['sending', 'sent', 'delivered', 'read', 'failed'];
+export const MessageForm = ({
+  participants,
+  initial,
+  compact,
+  resetOnSubmit,
+  submitLabel,
+  advancedOpen,
+  onToggleAdvanced,
+  onSubmit,
+  onCancel,
+}: MessageFormProps) => {
+  const [content, setContent] = useState(initial?.content ?? "")
+  const [senderId, setSenderId] = useState(initial?.senderId ?? participants[0]?.id ?? "")
+  const [timestamp, setTimestamp] = useState(
+    initial?.timestamp ? toInputValue(initial.timestamp) : toInputValue(new Date().toISOString()),
+  )
+  const [type, setType] = useState<Message["type"]>(initial?.type ?? "text")
+  const [status, setStatus] = useState<Message["status"]>(initial?.status ?? "sent")
+  const showAdvanced = advancedOpen ?? true
+  const showAdvancedToggle = typeof advancedOpen === "boolean" && typeof onToggleAdvanced === "function"
 
   return (
-    <form onSubmit={handleSubmit} class="space-y-4 p-4 border rounded-lg bg-card">
-      <div class="flex items-center gap-2 mb-4">
-        <MessageSquare class="w-5 h-5" />
-        <h3 class="text-lg font-semibold">
-          {props.editingMessage ? 'Edit Message' : 'Add New Message'}
-        </h3>
-      </div>
-
-      <div class="space-y-2">
-        <Label for="message-content">Message Content</Label>
+    <form
+      className="space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSubmit({
+          senderId,
+          content,
+          timestamp: fromInputValue(timestamp),
+          type,
+          status,
+        })
+        if (resetOnSubmit && !initial) {
+          setContent("")
+          setTimestamp(toInputValue(new Date().toISOString()))
+          setType("text")
+          setStatus("sent")
+          setSenderId(participants[0]?.id ?? "")
+        }
+      }}
+    >
+      <div className="space-y-2">
+        <Label>Message</Label>
         <Textarea
-          id="message-content"
-          value={content()}
-          onInput={(e: Event) => setContent((e.currentTarget as HTMLTextAreaElement).value)}
-          placeholder="Type your message..."
-          rows={3}
-          class="resize-none"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="Write the message..."
+          className={cn(compact && "min-h-[72px]")}
         />
       </div>
 
-      <div class="space-y-2">
-        <Label for="sender-select" class="flex items-center gap-2">
-          <UserCircle2 class="w-4 h-4" />
-          Sender
-        </Label>
-        <select
-          id="sender-select"
-          value={senderId()}
-          onChange={(e) => setSenderId(e.currentTarget.value)}
-          class="w-full px-3 py-2 border rounded-md bg-background"
-        >
-          <For each={props.participants}>
-            {(participant) => (
-              <option value={participant.id}>
-                {participant.name} {participant.isCurrentUser ? '(You)' : ''}
-              </option>
-            )}
-          </For>
-        </select>
-      </div>
+      {showAdvanced ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Sender</Label>
+              <Select value={senderId} onValueChange={setSenderId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select sender" />
+                </SelectTrigger>
+                <SelectContent>
+                  {participants.map((participant) => (
+                    <SelectItem key={participant.id} value={participant.id}>
+                      {participant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Timestamp</Label>
+              <Input
+                type="datetime-local"
+                value={timestamp}
+                onChange={(event) => setTimestamp(event.target.value)}
+              />
+            </div>
+          </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-2">
-          <Label for="message-type">Message Type</Label>
-          <select
-            id="message-type"
-            value={messageType()}
-            onChange={(e) => setMessageType(e.currentTarget.value as MessageType)}
-            class="w-full px-3 py-2 border rounded-md bg-background"
-          >
-            <For each={messageTypes}>
-              {(type) => (
-                <option value={type}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </option>
-              )}
-            </For>
-          </select>
-        </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={type} onValueChange={(value) => setType(value as Message["type"])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
+                  <SelectItem value="image">Image placeholder</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(value) => setStatus(value as Message["status"])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="read">Read</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </>
+      ) : null}
 
-        <div class="space-y-2">
-          <Label for="message-status">Status</Label>
-          <select
-            id="message-status"
-            value={status()}
-            onChange={(e) => setStatus(e.currentTarget.value as MessageStatus)}
-            class="w-full px-3 py-2 border rounded-md bg-background"
-          >
-            <For each={messageStatuses}>
-              {(stat) => (
-                <option value={stat}>
-                  {stat.charAt(0).toUpperCase() + stat.slice(1)}
-                </option>
-              )}
-            </For>
-          </select>
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <Label for="timestamp" class="flex items-center gap-2">
-          <Calendar class="w-4 h-4" />
-          Timestamp
-        </Label>
-        <input
-          id="timestamp"
-          type="datetime-local"
-          value={timestamp()}
-          onInput={(e) => setTimestamp(e.currentTarget.value)}
-          class="w-full px-3 py-2 border rounded-md bg-background"
-        />
-      </div>
-
-      <div class="flex gap-2 pt-2">
-        <Button type="submit" class="flex-1">
-          <Send class="w-4 h-4 mr-2" />
-          {props.editingMessage ? 'Update Message' : 'Add Message'}
-        </Button>
-        <Show when={props.onCancel}>
-          <Button type="button" variant="outline" onClick={props.onCancel}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit">{submitLabel ?? (initial ? "Save changes" : "Add message")}</Button>
+        {initial ? (
+          <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
-        </Show>
+        ) : null}
+        {showAdvancedToggle ? (
+          <Button type="button" variant="ghost" onClick={onToggleAdvanced}>
+            {advancedOpen ? "Hide advanced" : "Advanced"}
+          </Button>
+        ) : null}
       </div>
     </form>
-  );
-};
+  )
+}

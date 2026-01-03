@@ -1,350 +1,201 @@
-import type { Component } from 'solid-js';
-import { createSignal, For, Show } from 'solid-js';
-import { Download, Loader2, Smartphone, Tablet, Monitor, Share2, ChevronDown, ChevronUp, Copy, Check } from 'lucide-solid';
-import type { ExportSettings, DevicePreset } from '../../types';
-import { DEVICE_PRESETS } from '../../utils/export';
-import { Button } from '../ui/button';
-import { Label } from '../ui/label';
+import { useMemo, useState } from "react"
+import { Copy, Download, Image, Loader2, Palette, StretchHorizontal, StretchVertical } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { SizePresets } from "@/components/export/SizePresets"
+import { sizePresets } from "@/constants/exportPresets"
+import { exportNodeToImage } from "@/utils/export"
+import { useConversationStore } from "@/store/conversationStore"
+import { cn } from "@/utils/cn"
 
 interface ExportPanelProps {
-  onExport: (settings: ExportSettings) => Promise<void>;
-  isExporting?: boolean;
+  targetRef: React.RefObject<HTMLDivElement | null> | React.RefObject<HTMLDivElement>
 }
 
-export const ExportPanel: Component<ExportPanelProps> = (props) => {
-  const [selectedPreset, setSelectedPreset] = createSignal<DevicePreset>(DEVICE_PRESETS[0]);
-  const [customWidth, setCustomWidth] = createSignal(393);
-  const [customHeight, setCustomHeight] = createSignal(852);
-  const [quality, setQuality] = createSignal<1 | 2 | 3>(2);
-  const [format, setFormat] = createSignal<'png' | 'jpeg'>('png');
-  const [backgroundColor, setBackgroundColor] = createSignal('#ffffff');
-  const [includeTransparency, setIncludeTransparency] = createSignal(false);
-  const [settingsExpanded, setSettingsExpanded] = createSignal(true);
-  const [copySuccess, setCopySuccess] = createSignal(false);
+export const ExportPanel = ({ targetRef }: ExportPanelProps) => {
+  const exportSettings = useConversationStore((state) => state.exportSettings)
+  const setExportSettings = useConversationStore((state) => state.setExportSettings)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isSummaryOpen, setIsSummaryOpen] = useState(true)
 
-  const isCustom = () => selectedPreset().category === 'custom';
-  
-  const effectiveWidth = () => isCustom() ? customWidth() : selectedPreset().width;
-  const effectiveHeight = () => isCustom() ? customHeight() : selectedPreset().height;
-
-  const handlePresetChange = (preset: DevicePreset) => {
-    setSelectedPreset(preset);
-    if (!isCustom()) {
-      setCustomWidth(preset.width);
-      setCustomHeight(preset.height);
-    }
-  };
+  const preset = useMemo(
+    () => sizePresets.find((item) => item.id === exportSettings.presetId),
+    [exportSettings.presetId],
+  )
 
   const handleExport = async () => {
-    const settings: ExportSettings = {
-      width: effectiveWidth(),
-      height: effectiveHeight(),
-      quality: quality(),
-      format: format(),
-      backgroundColor: includeTransparency() ? 'transparent' : backgroundColor(),
-      devicePreset: selectedPreset().name,
-    };
-
-    await props.onExport(settings);
-  };
-  
-  const handleCopySettings = async () => {
-    const settingsText = `Export Settings:
-Dimensions: ${effectiveWidth()} × ${effectiveHeight()}px
-Quality: ${quality()}x (${effectiveWidth() * quality()} × ${effectiveHeight() * quality()}px)
-Format: ${format().toUpperCase()}
-Background: ${includeTransparency() ? 'Transparent' : backgroundColor()}`;
-    
+    if (!targetRef.current) return
+    setIsExporting(true)
     try {
-      await navigator.clipboard.writeText(settingsText);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+      const dataUrl = await exportNodeToImage(targetRef.current, exportSettings)
+      const link = document.createElement("a")
+      link.href = dataUrl
+      link.download = `chat-export.${exportSettings.format === "jpeg" ? "jpg" : "png"}`
+      link.click()
+    } catch (error) {
+      console.error("Export failed", error)
+    } finally {
+      setIsExporting(false)
     }
-  };
+  }
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'mobile': return Smartphone;
-      case 'tablet': return Tablet;
-      case 'desktop': return Monitor;
-      case 'social': return Share2;
-      default: return Smartphone;
-    }
-  };
-
-  const presetsByCategory = () => {
-    const categories: Record<string, DevicePreset[]> = {};
-    DEVICE_PRESETS.forEach(preset => {
-      if (!categories[preset.category]) {
-        categories[preset.category] = [];
-      }
-      categories[preset.category].push(preset);
-    });
-    return categories;
-  };
+  const settingsSummary = `${exportSettings.width} x ${exportSettings.height} • ${exportSettings.scale}x • ${exportSettings.format.toUpperCase()}`
 
   return (
-    <div class="space-y-6 p-4 border rounded-lg bg-card">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold">Export Conversation</h2>
-        <Button
-          onClick={handleExport}
-          disabled={props.isExporting}
-          class="min-w-32"
-        >
-          <Show
-            when={!props.isExporting}
-            fallback={
-              <>
-                <Loader2 class="w-4 h-4 mr-2 animate-spin" />
-                Exporting...
-              </>
-            }
-          >
-            <Download class="w-4 h-4 mr-2" />
-            Export PNG
-          </Show>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Download Options</h3>
+          <p className="text-xs text-slate-500">Craft export-ready dimensions and quality.</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => setIsSummaryOpen(!isSummaryOpen)}>
+          {isSummaryOpen ? "Collapse" : "Expand"}
         </Button>
       </div>
 
-      {/* Device Presets */}
-      <div class="space-y-3">
-        <Label>Device Presets</Label>
-        <div class="space-y-2">
-          <For each={Object.entries(presetsByCategory())}>
-            {([category, presets]) => (
-              <div class="space-y-1">
-                <div class="text-xs font-medium text-muted-foreground uppercase">
-                  {category}
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <For each={presets}>
-                    {(preset) => {
-                      const Icon = getCategoryIcon(preset.category);
-                      const isSelected = () => selectedPreset().name === preset.name;
-                      return (
-                        <Button
-                          onClick={() => handlePresetChange(preset)}
-                          variant={isSelected() ? 'default' : 'outline'}
-                          class="flex items-center gap-2 h-auto py-2 text-sm justify-start"
-                          classList={{
-                            'ring-2 ring-primary/20': isSelected(),
-                          }}
-                        >
-                          <Icon class="w-4 h-4 flex-shrink-0" />
-                          <div class="flex-1 text-left min-w-0">
-                            <div class="font-medium truncate">{preset.name}</div>
-                            <Show when={preset.category !== 'custom'}>
-                              <div class="text-xs opacity-80">
-                                {preset.width} × {preset.height}
-                              </div>
-                            </Show>
-                          </div>
-                        </Button>
-                      );
-                    }}
-                  </For>
-                </div>
-              </div>
-            )}
-          </For>
+      {isSummaryOpen ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Image className="h-4 w-4 text-slate-500" />
+              <span>{settingsSummary}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigator.clipboard.writeText(settingsSummary)}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="space-y-3">
+        <Label>Device presets</Label>
+        <SizePresets
+          selectedId={exportSettings.presetId}
+          onSelect={(presetItem) =>
+            setExportSettings({
+              presetId: presetItem.id,
+              width: presetItem.width,
+              height: presetItem.height,
+            })
+          }
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Custom width</Label>
+          <div className="relative">
+            <StretchHorizontal className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              type="number"
+              min={240}
+              value={exportSettings.width}
+              onChange={(event) =>
+                setExportSettings({
+                  presetId: "custom",
+                  width: Number(event.target.value),
+                })
+              }
+              className="pl-9"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Custom height</Label>
+          <div className="relative">
+            <StretchVertical className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              type="number"
+              min={240}
+              value={exportSettings.height}
+              onChange={(event) =>
+                setExportSettings({
+                  presetId: "custom",
+                  height: Number(event.target.value),
+                })
+              }
+              className="pl-9"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Custom Dimensions */}
-      <Show when={isCustom()}>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <Label for="custom-width">Width (px)</Label>
-            <input
-              id="custom-width"
-              type="number"
-              min="100"
-              max="4096"
-              value={customWidth()}
-              onInput={(e) => setCustomWidth(parseInt(e.currentTarget.value) || 393)}
-              class="w-full px-3 py-2 border rounded-md bg-background"
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="custom-height">Height (px)</Label>
-            <input
-              id="custom-height"
-              type="number"
-              min="100"
-              max="4096"
-              value={customHeight()}
-              onInput={(e) => setCustomHeight(parseInt(e.currentTarget.value) || 852)}
-              class="w-full px-3 py-2 border rounded-md bg-background"
-            />
-          </div>
+      <div className="space-y-2">
+        <Label>Quality</Label>
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3].map((scale) => (
+            <Button
+              key={scale}
+              variant={exportSettings.scale === scale ? "default" : "outline"}
+              onClick={() => setExportSettings({ scale })}
+            >
+              {scale}x
+            </Button>
+          ))}
         </div>
-      </Show>
+      </div>
 
-      {/* Quality Settings */}
-      <div class="space-y-2">
-        <Label for="quality">Quality (Resolution Multiplier)</Label>
-        <div class="grid grid-cols-3 gap-2">
-          <For each={[1, 2, 3] as const}>
-            {(q) => {
-              const isSelected = () => quality() === q;
-              return (
-                <Button
-                  onClick={() => setQuality(q)}
-                  variant={isSelected() ? 'default' : 'outline'}
-                  class="text-sm font-medium"
-                  classList={{
-                    'ring-2 ring-primary/20': isSelected(),
-                  }}
-                >
-                  {q}x
-                </Button>
-              );
-            }}
-          </For>
+      <div className="space-y-2">
+        <Label>Format</Label>
+        <div className="flex gap-2">
+          <Button
+            variant={exportSettings.format === "png" ? "default" : "outline"}
+            onClick={() => setExportSettings({ format: "png", transparent: exportSettings.transparent })}
+          >
+            PNG
+          </Button>
+          <Button
+            variant={exportSettings.format === "jpeg" ? "default" : "outline"}
+            onClick={() => setExportSettings({ format: "jpeg", transparent: false })}
+          >
+            JPEG
+          </Button>
         </div>
-        <p class="text-xs text-muted-foreground">
-          Higher quality = larger file size. 2x recommended for most uses.
+      </div>
+
+      <div className="space-y-2">
+        <Label>Background</Label>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <Palette className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              type="text"
+              value={exportSettings.background}
+              onChange={(event) => setExportSettings({ background: event.target.value })}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1">
+            <Switch
+              checked={exportSettings.transparent}
+              onCheckedChange={(value) => setExportSettings({ transparent: value })}
+              disabled={exportSettings.format === "jpeg"}
+            />
+            <span className={cn("text-xs", exportSettings.format === "jpeg" && "opacity-50")}>
+              Transparent
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <Button className="w-full" onClick={handleExport} disabled={isExporting}>
+        {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        Download Export
+      </Button>
+
+      {preset ? (
+        <p className="text-xs text-slate-500">
+          Preset: {preset.label} • {preset.width} x {preset.height}
         </p>
-      </div>
-
-      {/* Format Selection */}
-      <div class="space-y-2">
-        <Label for="format">Format</Label>
-        <div class="grid grid-cols-2 gap-2">
-          <For each={[{ value: 'png', label: 'PNG' }, { value: 'jpeg', label: 'JPEG' }] as const}>
-            {(fmt) => {
-              const isSelected = () => format() === fmt.value;
-              return (
-                <Button
-                  onClick={() => setFormat(fmt.value)}
-                  variant={isSelected() ? 'default' : 'outline'}
-                  class="text-sm font-medium"
-                  classList={{
-                    'ring-2 ring-primary/20': isSelected(),
-                  }}
-                >
-                  {fmt.label}
-                </Button>
-              );
-            }}
-          </For>
-        </div>
-      </div>
-
-      {/* Background Options */}
-      <Show when={format() === 'png'}>
-        <div class="space-y-3">
-          <div class="flex items-center gap-2">
-            <input
-              id="transparency"
-              type="checkbox"
-              checked={includeTransparency()}
-              onChange={(e) => setIncludeTransparency(e.currentTarget.checked)}
-              class="w-4 h-4"
-            />
-            <Label for="transparency" class="cursor-pointer">
-              Transparent Background
-            </Label>
-          </div>
-          
-          <Show when={!includeTransparency()}>
-            <div class="space-y-2">
-              <Label for="bg-color">Background Color</Label>
-              <div class="flex gap-2">
-                <input
-                  id="bg-color"
-                  type="color"
-                  value={backgroundColor()}
-                  onInput={(e) => setBackgroundColor(e.currentTarget.value)}
-                  class="w-12 h-10 rounded border cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={backgroundColor()}
-                  onInput={(e) => setBackgroundColor(e.currentTarget.value)}
-                  class="flex-1 px-3 py-2 border rounded-md bg-background font-mono text-sm"
-                  placeholder="#ffffff"
-                />
-              </div>
-            </div>
-          </Show>
-        </div>
-      </Show>
-
-      {/* Export Info */}
-      <div class="border rounded-md overflow-hidden">
-        <Button
-          onClick={() => setSettingsExpanded(!settingsExpanded())}
-          variant="ghost"
-          class="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-none h-auto"
-        >
-          <span class="font-medium text-sm">Export Settings Summary</span>
-          <Show
-            when={settingsExpanded()}
-            fallback={<ChevronDown class="w-4 h-4" />}
-          >
-            <ChevronUp class="w-4 h-4" />
-          </Show>
-        </Button>
-        
-        <Show when={settingsExpanded()}>
-          <div class="p-3 space-y-2 text-sm bg-muted/20">
-            <div class="flex items-center justify-between">
-              <span class="text-muted-foreground">Dimensions:</span>
-              <span class="font-mono font-medium">{effectiveWidth()} × {effectiveHeight()}px</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-muted-foreground">Quality:</span>
-              <span class="font-mono font-medium">{quality()}x ({effectiveWidth() * quality()} × {effectiveHeight() * quality()}px)</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-muted-foreground">Format:</span>
-              <span class="font-mono font-medium">{format().toUpperCase()}</span>
-            </div>
-            <Show when={format() === 'png'}>
-              <div class="flex items-center justify-between">
-                <span class="text-muted-foreground">Background:</span>
-                <div class="flex items-center gap-2">
-                  <Show
-                    when={!includeTransparency()}
-                    fallback={<span class="font-mono font-medium">Transparent</span>}
-                  >
-                    <div 
-                      class="w-4 h-4 rounded border"
-                      style={{ 'background-color': backgroundColor() }}
-                    />
-                    <span class="font-mono font-medium">{backgroundColor()}</span>
-                  </Show>
-                </div>
-              </div>
-            </Show>
-            <div class="pt-2 border-t mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopySettings}
-                class="w-full"
-              >
-                <Show
-                  when={copySuccess()}
-                  fallback={
-                    <>
-                      <Copy class="w-4 h-4 mr-2" />
-                      Copy Settings
-                    </>
-                  }
-                >
-                  <Check class="w-4 h-4 mr-2" />
-                  Copied!
-                </Show>
-              </Button>
-            </div>
-          </div>
-        </Show>
-      </div>
+      ) : (
+        <p className="text-xs text-slate-500">Custom size active.</p>
+      )}
     </div>
-  );
-};
+  )
+}
