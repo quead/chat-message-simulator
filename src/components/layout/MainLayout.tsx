@@ -23,6 +23,14 @@ import { SettingsPanel } from "@/components/layout/SettingsPanel"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { LayoutSelector } from "@/components/layout/LayoutSelector"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/utils/cn"
 import { clamp } from "@/utils/helpers"
@@ -331,6 +339,162 @@ export const MainLayout = () => {
               </CardContent>
             </Card>
           </main>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm">
+                Terms and Conditions
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Terms and Conditions</DialogTitle>
+                <DialogDescription>
+                  By using this app, you agree to these terms.
+                </DialogDescription>
+                <div className="text-xs text-slate-500">Last updated: 2026-01-03 | Version: 2026-01-03</div>
+              </DialogHeader>
+              <div className="space-y-4 text-sm text-slate-600">
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">What this app does</div>
+                  <p>
+                    This app lets you compose chat mockups, preview layouts, and export images.
+                    All processing happens in your browser.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Data handling and GDPR</div>
+                  <p>
+                    We do not collect, store, or process personal data on our servers. Your edits
+                    and autosaves stay in your browser&apos;s local storage. You can delete them
+                    using Clear or by clearing site data in your browser.
+                  </p>
+                  <p>
+                    We do not run analytics or tracking cookies. Because your content does not
+                    leave your device, there is no server-side data controller or processor for
+                    your content. If you contact us, we will only use your email to respond.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Third-party resources</div>
+                  <p>
+                    The app may load fonts or default avatar images from third-party providers.
+                    Those providers may receive standard request data such as IP address and user
+                    agent. You can replace assets or block network requests if needed.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Your content</div>
+                  <p>
+                    You are responsible for the content you enter and export. Do not include
+                    sensitive data unless you are comfortable storing it locally. Only use content
+                    and assets you have the rights to use.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">No warranties</div>
+                  <p>
+                    The app is provided &quot;as is&quot; and &quot;as available&quot; without any
+                    warranties, express or implied, including accuracy, reliability, availability,
+                    or fitness for a particular purpose. Use the app at your own risk.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Limitation of liability</div>
+                  <p>
+                    To the maximum extent permitted by law, we are not liable for any indirect,
+                    incidental, special, consequential, or punitive damages, or any loss of data,
+                    profits, or business interruption. Our total liability is limited to the
+                    amount you paid for the app, which is zero.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Governing law</div>
+                  <p>
+                    These terms are governed by the laws of Romania. Any disputes are subject to
+                    the exclusive jurisdiction of the courts in Romania.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Contact</div>
+                  <p>
+                    Questions about these terms or GDPR? Email: queadx@gmail.com
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Changes</div>
+                  <p>
+                    We may update these terms from time to time. Continued use means you accept
+                    the updated terms.
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm">
+                Privacy Policy
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Privacy Policy</DialogTitle>
+                <DialogDescription>
+                  This policy explains how data is handled in the app.
+                </DialogDescription>
+                <div className="text-xs text-slate-500">Last updated: 2026-01-03 | Version: 2026-01-03</div>
+              </DialogHeader>
+              <div className="space-y-4 text-sm text-slate-600">
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Data we collect</div>
+                  <p>
+                    We do not collect or store your chat content on our servers. Everything you
+                    create stays on your device.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Local storage</div>
+                  <p>
+                    The app uses your browser&apos;s local storage to keep autosaves and settings.
+                    You can remove this data with Clear or by clearing site data in your browser.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Third-party requests</div>
+                  <p>
+                    Fonts and default avatar images may be loaded from third-party services. Those
+                    providers may receive standard request data such as IP address and user agent.
+                    You can block or replace these resources if needed.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">GDPR readiness</div>
+                  <p>
+                    Because your content does not leave your device, there is no server-side
+                    processing of personal data for the app. If you contact us, we only use your
+                    email to respond and do not share it.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Contact</div>
+                  <p>
+                    Privacy questions? Email: queadx@gmail.com
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-slate-900">Changes</div>
+                  <p>
+                    We may update this policy from time to time. Continued use means you accept
+                    the updated policy.
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
       <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/90 px-4 py-2 shadow-lg backdrop-blur lg:hidden">
