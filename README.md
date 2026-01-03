@@ -2,7 +2,9 @@
 
 > A powerful React application for creating, customizing, and exporting high-quality chat conversation mockups.
 
-![Project Banner](https://placehold.co/1200x400/e2e8f0/1e293b?text=Chat+Message+Simulator)
+## 🌐 Live Demo
+
+**[Try it now at https://quead.github.io/](https://quead.github.io/)**
 
 ## ✨ Features
 
