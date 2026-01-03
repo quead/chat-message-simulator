@@ -8,4 +8,5 @@ export interface Message {
   timestamp: string
   type: MessageType
   status: MessageStatus
+  isHidden?: boolean
 }

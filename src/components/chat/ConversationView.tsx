@@ -18,6 +18,7 @@ export const ConversationView = ({
   layout,
   selfId,
 }: ConversationViewProps) => {
+  const visibleMessages = messages.filter((message) => !message.isHidden)
   const isWhatsApp = layout.id === "whatsapp"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
@@ -56,16 +57,18 @@ export const ConversationView = ({
             : "gap-4 px-4 py-6",
       )}
     >
-      {messages.length === 0 ? (
+      {visibleMessages.length === 0 ? (
         <div className="mx-auto max-w-sm rounded-2xl border border-dashed border-white/40 bg-white/10 px-6 py-8 text-center text-sm text-[var(--chat-muted)]">
-          Start your story by adding messages in the builder.
+          {messages.length === 0
+            ? "Start your story by adding messages in the builder."
+            : "No visible messages. Unhide messages in the builder."}
         </div>
       ) : null}
-      {messages.map((message, index) => {
+      {visibleMessages.map((message, index) => {
         const sender = participants.find((participant) => participant.id === message.senderId)
         const currentDate = formatDateSeparator(message.timestamp)
         const previousDate =
-          index > 0 ? formatDateSeparator(messages[index - 1].timestamp) : ""
+          index > 0 ? formatDateSeparator(visibleMessages[index - 1].timestamp) : ""
         const showDate = currentDate !== previousDate
 
         if (message.type === "system") {
