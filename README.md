@@ -8,7 +8,7 @@
 
 ## ✨ Features
 
-- **🎨 Multiple Layouts**: Authentic recreations of popular messaging apps including WhatsApp, iMessage, Snapchat, and Messenger.
+- **🎨 Multiple Layouts**: Authentic recreations of popular messaging apps including WhatsApp, iMessage, Snapchat, Facebook Messenger, and Tinder.
 - **🌓 Light & Dark Modes**: Full support for light and dark themes across all layouts.
 - **⚡ Live Preview**: Real-time rendering of your conversation as you build it.
 - **🖼️ High-Quality Export**: Download your creations as PNG or JPEG images with custom scaling.
@@ -22,8 +22,9 @@
 |----------|------------|-----------|
 | **WhatsApp** | ✅ | ✅ |
 | **iMessage** | ✅ | ✅ |
-| **Messenger** | ✅ | ✅ |
+| **Facebook Messenger** | ✅ | ✅ |
 | **Snapchat** | ✅ | ✅ |
+| **Tinder** | ✅ | ✅ |
 
 ## 🛠️ Tech Stack
 

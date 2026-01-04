@@ -22,6 +22,7 @@ export const ConversationView = ({
   const isWhatsApp = layout.id === "whatsapp"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
+  const isTinder = layout.id === "tinder"
   const isGroup = participants.length > 2
   const dateBadgeClass = cn(
     "mx-auto w-fit rounded-full px-2.5 py-0.5 text-[0.7rem]",
@@ -30,7 +31,9 @@ export const ConversationView = ({
       : isSnapchat
         ? "bg-black/5 text-[0.6rem] font-medium text-[var(--chat-muted)]"
         : isMessenger
-          ? "bg-black/5 text-[0.6rem] font-medium text-[var(--chat-muted)]"
+          ? "bg-transparent text-[0.6rem] font-medium text-[var(--chat-muted)]"
+          : isTinder
+            ? "bg-transparent text-[0.55rem] font-semibold uppercase tracking-wide text-[var(--chat-muted)]"
         : "bg-white/20 text-[var(--chat-muted)]",
   )
   const systemMessageClass = cn(
@@ -40,7 +43,9 @@ export const ConversationView = ({
       : isSnapchat
         ? "bg-black/5 text-[var(--chat-muted)]"
         : isMessenger
-          ? "bg-black/5 text-[var(--chat-muted)]"
+          ? "bg-transparent text-[var(--chat-muted)]"
+          : isTinder
+            ? "bg-transparent text-[var(--chat-muted)]"
         : "bg-white/15 text-[var(--chat-muted)]",
   )
 
@@ -54,6 +59,8 @@ export const ConversationView = ({
             ? "gap-2 px-2.5 py-4"
             : isMessenger
               ? "gap-3 px-3 py-4"
+              : isTinder
+                ? "gap-2.5 px-4 py-4"
             : "gap-4 px-4 py-6",
       )}
     >

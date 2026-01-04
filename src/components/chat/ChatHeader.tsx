@@ -1,4 +1,4 @@
-import { ArrowLeft, Info, Phone, Video } from "lucide-react"
+import { ArrowLeft, Info, MoreHorizontal, Phone, Shield, Video } from "lucide-react"
 import type { LayoutConfig, LayoutTheme } from "@/types/layout"
 import { cn } from "@/utils/cn"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,7 @@ export const ChatHeader = ({
   const isIMessage = layout.id === "imessage"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
+  const isTinder = layout.id === "tinder"
   const actionIcons = isWhatsApp
     ? [Video, Phone, Info]
     : isIMessage
@@ -32,6 +33,8 @@ export const ChatHeader = ({
         ? [Video, Phone]
         : isMessenger
           ? [Phone, Video, Info]
+          : isTinder
+            ? [Shield, MoreHorizontal]
           : [Phone, Video, Info]
   const headerPadding = isWhatsApp
     ? "px-3 py-2"
@@ -41,20 +44,25 @@ export const ChatHeader = ({
         ? "px-3 py-2"
         : isMessenger
           ? "px-3 py-2"
-        : "px-4 py-3"
+          : isTinder
+            ? "px-4 py-3"
+            : "px-4 py-3"
   const iconClass = isWhatsApp
     ? "h-5 w-5"
     : isIMessage || isSnapchat
       ? "h-[18px] w-[18px]"
       : isMessenger
         ? "h-[18px] w-[18px]"
-      : "h-4 w-4"
+        : isTinder
+          ? "h-5 w-5"
+          : "h-4 w-4"
   const iconButtonClass = cn(
     "text-inherit hover:bg-white/10",
     isWhatsApp && "h-9 w-9 rounded-full",
     isIMessage && "h-8 w-8 rounded-full text-[var(--chat-accent)] hover:bg-black/5",
     isSnapchat && "h-8 w-8 rounded-full text-[var(--chat-header-text)] hover:bg-black/5",
     isMessenger && "h-8 w-8 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(0,132,255,0.1)]",
+    isTinder && "h-9 w-9 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(253,80,104,0.12)]",
   )
   const avatarClass = isWhatsApp
     ? "h-9 w-9"
@@ -64,8 +72,10 @@ export const ChatHeader = ({
         ? "h-8 w-8"
         : isMessenger
           ? "h-9 w-9"
-        : "h-10 w-10"
-  const showHeaderAvatar = layout.showAvatars || isIMessage || isSnapchat || isMessenger
+          : isTinder
+            ? "h-10 w-10"
+            : "h-10 w-10"
+  const showHeaderAvatar = layout.showAvatars || isIMessage || isSnapchat || isMessenger || isTinder
   const fallbackText = (avatarFallback || title).slice(0, 2).toUpperCase()
   const fallbackClass = cn(
     "flex items-center justify-center rounded-full font-semibold",
@@ -78,7 +88,9 @@ export const ChatHeader = ({
           ? "bg-black/5 text-[0.7rem]"
           : isMessenger
             ? "bg-[var(--chat-border)] text-[0.7rem]"
-          : "bg-white/15 text-sm",
+            : isTinder
+              ? "bg-[var(--chat-border)] text-[0.7rem] text-[var(--chat-muted)]"
+              : "bg-white/15 text-sm",
   )
 
   return (
@@ -94,9 +106,11 @@ export const ChatHeader = ({
               ? "min-h-[56px] border-b border-[var(--chat-border)]"
               : isMessenger
                 ? "min-h-[56px] border-b border-[var(--chat-border)]"
-            : layout.headerStyle === "compact"
-              ? "min-h-[56px]"
-              : "min-h-[68px]",
+                : isTinder
+                  ? "min-h-[64px] border-b border-[var(--chat-border)]"
+                  : layout.headerStyle === "compact"
+                    ? "min-h-[56px]"
+                    : "min-h-[68px]",
       )}
       style={{
         backgroundColor: theme.colors.header,
@@ -140,7 +154,15 @@ export const ChatHeader = ({
         <div
           className={cn(
             "flex items-center",
-            isWhatsApp ? "gap-2.5" : isSnapchat ? "gap-2" : isMessenger ? "gap-2" : "gap-3",
+            isWhatsApp
+              ? "gap-2.5"
+              : isSnapchat
+                ? "gap-2"
+                : isMessenger
+                  ? "gap-2"
+                  : isTinder
+                    ? "gap-3"
+                    : "gap-3",
           )}
         >
           <Button size="icon" variant="ghost" className={iconButtonClass}>
@@ -153,6 +175,7 @@ export const ChatHeader = ({
                 className={cn(
                   "rounded-full border border-white/20 object-cover",
                   isSnapchat && "border-black/5",
+                  isTinder && "border-[var(--chat-border)]",
                   avatarClass,
                 )}
               />
@@ -169,6 +192,8 @@ export const ChatHeader = ({
                       ? "text-[0.9rem]"
                       : isMessenger
                         ? "text-[0.95rem]"
+                        : isTinder
+                          ? "text-[1rem] leading-tight"
                         : "text-sm",
                 )}
               >

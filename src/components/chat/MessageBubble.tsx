@@ -25,6 +25,9 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
   const isIMessage = layout.id === "imessage"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
+  const isTinder = layout.id === "tinder"
+  const showMessengerAvatar = isMessenger && !isOwn
+  const avatarFallback = (sender?.name || "??").slice(0, 2).toUpperCase()
   const showSender = isWhatsApp ? isGroup : isSnapchat ? true : isMessenger ? isGroup : layout.showAvatars
   const bubbleRadius =
     isWhatsApp
@@ -35,11 +38,13 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
           ? "rounded-none"
           : isMessenger
             ? "rounded-[20px]"
-        : layout.bubbleStyle === "sharp"
-          ? "rounded-md"
-          : layout.bubbleStyle === "minimal"
-            ? "rounded-lg"
-            : "rounded-2xl"
+            : isTinder
+              ? "rounded-[22px]"
+              : layout.bubbleStyle === "sharp"
+                ? "rounded-md"
+                : layout.bubbleStyle === "minimal"
+                  ? "rounded-lg"
+                  : "rounded-2xl"
   const bubbleColor = isOwn ? "var(--bubble-sent)" : "var(--bubble-received)"
   const textColor = isOwn ? "var(--bubble-sent-text)" : "var(--bubble-received-text)"
   const snapBorderColor = isOwn ? "var(--bubble-sent)" : "var(--bubble-received)"
@@ -58,6 +63,83 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
     bubbleStyle.borderLeftStyle = "solid"
     bubbleStyle.borderLeftWidth = "3px"
   }
+  if (isTinder) {
+    if (isOwn) {
+      bubbleStyle.backgroundImage = "linear-gradient(135deg, #fd5068 0%, #ff7a59 100%)"
+    } else {
+      bubbleStyle.border = "1px solid var(--chat-border)"
+    }
+  }
+
+  const bubbleAlignment = isMessenger
+    ? ""
+    : isSnapchat
+      ? "mr-auto"
+      : isOwn
+        ? "ml-auto"
+        : "mr-auto"
+  const messengerAvatar = showMessengerAvatar ? (
+    sender?.avatarUrl ? (
+      <img
+        src={sender.avatarUrl}
+        alt={sender?.name || "Avatar"}
+        className="h-7 w-7 shrink-0 rounded-full object-cover"
+      />
+    ) : (
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--chat-border)] text-[0.6rem] font-semibold text-[var(--chat-muted)]">
+        {avatarFallback}
+      </div>
+    )
+  ) : null
+  const bubbleContent = (
+    <div
+      className={cn(
+        "px-3 py-2 text-sm shadow-sm",
+        bubbleRadius,
+        bubbleAlignment,
+        isWhatsApp
+          ? "whatsapp-bubble relative max-w-[80%] px-3 py-1.5 text-[0.94rem] leading-[1.3] shadow-[0_1px_1px_rgba(0,0,0,0.08)]"
+          : isIMessage
+            ? "max-w-[76%] px-3 py-2 text-[0.95rem] leading-[1.35]"
+            : isSnapchat
+              ? "max-w-[82%] px-3 py-1 text-[0.95rem] leading-[1.35] shadow-none"
+              : isMessenger
+                ? "max-w-[78%] px-3 py-2 text-[0.95rem] leading-[1.35] shadow-none"
+                : isTinder
+                  ? "max-w-[72%] px-4 py-2 text-[0.95rem] leading-[1.35] shadow-none"
+                  : "max-w-[78%]",
+        isWhatsApp && (isOwn ? "whatsapp-bubble--own" : "whatsapp-bubble--other"),
+      )}
+      style={bubbleStyle}
+    >
+      {message.type === "image" ? (
+        <div className="space-y-2">
+          <div className="h-24 w-40 rounded-lg border border-white/20 bg-white/10" />
+          <p className="text-xs opacity-75">Image placeholder</p>
+        </div>
+      ) : (
+        <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+      )}
+      {isWhatsApp ? (
+        <div
+          className="mt-0.5 flex items-center justify-end gap-1 text-[0.6rem] leading-none"
+          style={{ color: "var(--chat-muted)" }}
+        >
+          <span>{formatTimestamp(message.timestamp)}</span>
+          {isOwn ? (
+            <span
+              className={cn(
+                "flex items-center gap-1",
+                message.status === "read" && "text-[#53bdeb]",
+              )}
+            >
+              {statusIcon(message.status, "h-3 w-3")}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
 
   return (
     <div
@@ -97,52 +179,24 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
           {isSnapchat ? (isOwn ? "You" : sender?.name ?? "Unknown") : sender?.name}
         </div>
       ) : null}
-      <div
-        className={cn(
-          "px-3 py-2 text-sm shadow-sm",
-          bubbleRadius,
-          isSnapchat ? "mr-auto" : isOwn ? "ml-auto" : "mr-auto",
-          isWhatsApp
-            ? "whatsapp-bubble relative max-w-[80%] px-3 py-1.5 text-[0.94rem] leading-[1.3] shadow-[0_1px_1px_rgba(0,0,0,0.08)]"
-            : isIMessage
-              ? "max-w-[76%] px-3 py-2 text-[0.95rem] leading-[1.35]"
-              : isSnapchat
-                ? "max-w-[82%] px-3 py-1 text-[0.95rem] leading-[1.35] shadow-none"
-                : isMessenger
-                  ? "max-w-[78%] px-3 py-2 text-[0.95rem] leading-[1.35] shadow-none"
-                : "max-w-[78%]",
-          isWhatsApp && (isOwn ? "whatsapp-bubble--own" : "whatsapp-bubble--other"),
-        )}
-        style={bubbleStyle}
-      >
-        {message.type === "image" ? (
-          <div className="space-y-2">
-            <div className="h-24 w-40 rounded-lg border border-white/20 bg-white/10" />
-            <p className="text-xs opacity-75">Image placeholder</p>
-          </div>
-        ) : (
-          <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
-        )}
-        {isWhatsApp ? (
-          <div
-            className="mt-0.5 flex items-center justify-end gap-1 text-[0.6rem] leading-none"
-            style={{ color: "var(--chat-muted)" }}
-          >
-            <span>{formatTimestamp(message.timestamp)}</span>
-            {isOwn ? (
-              <span
-                className={cn(
-                  "flex items-center gap-1",
-                  message.status === "read" && "text-[#53bdeb]",
-                )}
-              >
-                {statusIcon(message.status, "h-3 w-3")}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger ? (
+      {isMessenger ? (
+        <div className={cn("flex w-full items-end gap-2", isOwn ? "justify-end" : "justify-start")}>
+          {isOwn ? (
+            <>
+              {bubbleContent}
+              {messengerAvatar}
+            </>
+          ) : (
+            <>
+              {messengerAvatar}
+              {bubbleContent}
+            </>
+          )}
+        </div>
+      ) : (
+        bubbleContent
+      )}
+      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger && !isTinder ? (
         <div
           className={cn(
             "flex items-center gap-2 text-[0.7rem]",
