@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { FileDown, FileUp, Github, MoreHorizontal, Save, Trash2 } from "lucide-react"
+import { FileDown, FileUp, Github, MoreHorizontal, Redo2, Save, Trash2, Undo2 } from "lucide-react"
 import { useConversationStore } from "@/store/conversationStore"
 import { downloadJson, readJsonFile } from "@/utils/storage"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,10 @@ export const Toolbar = () => {
   const clearSnapshot = useConversationStore((state) => state.clearSnapshot)
   const lastAutosaveAt = useConversationStore((state) => state.lastAutosaveAt)
   const setLastAutosaveAt = useConversationStore((state) => state.setLastAutosaveAt)
+  const undo = useConversationStore((state) => state.undo)
+  const redo = useConversationStore((state) => state.redo)
+  const canUndo = useConversationStore((state) => state.history.past.length > 0)
+  const canRedo = useConversationStore((state) => state.history.future.length > 0)
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 30000)
@@ -56,6 +60,35 @@ export const Toolbar = () => {
     })
     return () => unsubscribe()
   }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target) {
+        const tagName = target.tagName
+        if (tagName === "INPUT" || tagName === "TEXTAREA" || target.isContentEditable) {
+          return
+        }
+      }
+      const isModifier = event.ctrlKey || event.metaKey
+      if (!isModifier) return
+      const key = event.key.toLowerCase()
+      if (key === "z") {
+        if (event.shiftKey) {
+          if (canRedo) redo()
+        } else if (canUndo) {
+          undo()
+        }
+        event.preventDefault()
+      } else if (key === "y") {
+        if (canRedo) redo()
+        event.preventDefault()
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [canRedo, canUndo, redo, undo])
 
   const autosaveLabel = lastAutosaveAt
     ? `Autosaved ${formatRelativeTime(lastAutosaveAt, now)}`
@@ -75,6 +108,40 @@ export const Toolbar = () => {
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={undo}
+                  disabled={!canUndo}
+                  aria-label="Undo"
+                >
+                  <Undo2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Undo</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Undo (Ctrl/Cmd+Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  aria-label="Redo"
+                >
+                  <Redo2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Redo</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Redo (Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y)</TooltipContent>
+            </Tooltip>
+          </div>
           <div className="hidden flex-wrap items-center gap-2 sm:flex">
             <Button variant="outline" size="sm" asChild>
               <a

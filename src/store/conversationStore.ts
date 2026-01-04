@@ -26,6 +26,22 @@ export interface UiState {
   autoFit: boolean
 }
 
+type Snapshot = {
+  conversation: Conversation
+  layoutId: LayoutId
+  themeId: ThemeId
+  activeParticipantId: string
+  backgroundImageUrl: string
+  backgroundImageOpacity: number
+  backgroundColor: string
+  exportSettings: ExportSettings
+}
+
+interface HistoryState {
+  past: Snapshot[]
+  future: Snapshot[]
+}
+
 interface ConversationStore {
   conversation: Conversation
   layoutId: LayoutId
@@ -36,6 +52,7 @@ interface ConversationStore {
   backgroundColor: string
   exportSettings: ExportSettings
   ui: UiState
+  history: HistoryState
   lastAutosaveAt: number | null
   setLayout: (layoutId: LayoutId) => void
   setTheme: (themeId: ThemeId) => void
@@ -64,6 +81,8 @@ interface ConversationStore {
   setUi: (updates: Partial<UiState>) => void
   resetConversation: () => void
   loadConversation: (conversation: Conversation) => void
+  undo: () => void
+  redo: () => void
   saveSnapshot: () => void
   clearSnapshot: () => void
 }
@@ -150,6 +169,26 @@ const defaultUiState: UiState = {
 }
 
 const STORAGE_KEY = "chat-sim-storage"
+const HISTORY_LIMIT = 3
+
+const buildSnapshot = (state: ConversationStore): Snapshot => ({
+  conversation: state.conversation,
+  layoutId: state.layoutId,
+  themeId: state.themeId,
+  activeParticipantId: state.activeParticipantId,
+  backgroundImageUrl: state.backgroundImageUrl,
+  backgroundImageOpacity: state.backgroundImageOpacity,
+  backgroundColor: state.backgroundColor,
+  exportSettings: state.exportSettings,
+})
+
+const pushHistory = (state: ConversationStore): HistoryState => {
+  const past = [...state.history.past, buildSnapshot(state)]
+  return {
+    past: past.slice(-HISTORY_LIMIT),
+    future: [],
+  }
+}
 
 export const useConversationStore = create<ConversationStore>()(
   persist(
@@ -163,14 +202,20 @@ export const useConversationStore = create<ConversationStore>()(
       backgroundColor: "",
       exportSettings: defaultExportSettings,
       ui: defaultUiState,
+      history: { past: [], future: [] },
       lastAutosaveAt: null,
-      setLayout: (layoutId) => set({ layoutId }),
-      setTheme: (themeId) => set({ themeId }),
-      setActiveParticipant: (participantId) => set({ activeParticipantId: participantId }),
-      setBackgroundImageUrl: (url) => set({ backgroundImageUrl: url }),
-      setBackgroundImageOpacity: (opacity) => set({ backgroundImageOpacity: opacity }),
-      clearBackgroundImage: () => set({ backgroundImageUrl: "" }),
-      setBackgroundColor: (color) => set({ backgroundColor: color }),
+      setLayout: (layoutId) => set((state) => ({ layoutId, history: pushHistory(state) })),
+      setTheme: (themeId) => set((state) => ({ themeId, history: pushHistory(state) })),
+      setActiveParticipant: (participantId) =>
+        set((state) => ({ activeParticipantId: participantId, history: pushHistory(state) })),
+      setBackgroundImageUrl: (url) =>
+        set((state) => ({ backgroundImageUrl: url, history: pushHistory(state) })),
+      setBackgroundImageOpacity: (opacity) =>
+        set((state) => ({ backgroundImageOpacity: opacity, history: pushHistory(state) })),
+      clearBackgroundImage: () =>
+        set((state) => ({ backgroundImageUrl: "", history: pushHistory(state) })),
+      setBackgroundColor: (color) =>
+        set((state) => ({ backgroundColor: color, history: pushHistory(state) })),
       setLastAutosaveAt: (timestamp) => set({ lastAutosaveAt: timestamp }),
       addParticipant: (participant) =>
         set((state) => {
@@ -190,6 +235,7 @@ export const useConversationStore = create<ConversationStore>()(
                 updatedAt: new Date().toISOString(),
               },
             },
+            history: pushHistory(state),
           }
         }),
       updateParticipant: (participantId, updates) =>
@@ -206,6 +252,7 @@ export const useConversationStore = create<ConversationStore>()(
               updatedAt: new Date().toISOString(),
             },
           },
+          history: pushHistory(state),
         })),
       removeParticipant: (participantId) =>
         set((state) => {
@@ -232,6 +279,7 @@ export const useConversationStore = create<ConversationStore>()(
                 updatedAt: new Date().toISOString(),
               },
             },
+            history: pushHistory(state),
           }
         }),
       setGroupName: (groupName) =>
@@ -244,6 +292,7 @@ export const useConversationStore = create<ConversationStore>()(
               updatedAt: new Date().toISOString(),
             },
           },
+          history: pushHistory(state),
         })),
       addMessage: (payload) =>
         set((state) => ({
@@ -261,6 +310,7 @@ export const useConversationStore = create<ConversationStore>()(
               updatedAt: new Date().toISOString(),
             },
           },
+          history: pushHistory(state),
         })),
       updateMessage: (messageId, updates) =>
         set((state) => ({
@@ -274,6 +324,7 @@ export const useConversationStore = create<ConversationStore>()(
               updatedAt: new Date().toISOString(),
             },
           },
+          history: pushHistory(state),
         })),
       deleteMessage: (messageId) =>
         set((state) => ({
@@ -285,6 +336,7 @@ export const useConversationStore = create<ConversationStore>()(
               updatedAt: new Date().toISOString(),
             },
           },
+          history: pushHistory(state),
         })),
       duplicateMessage: (messageId) =>
         set((state) => {
@@ -304,6 +356,7 @@ export const useConversationStore = create<ConversationStore>()(
                 updatedAt: new Date().toISOString(),
               },
             },
+            history: pushHistory(state),
           }
         }),
       setMessages: (messages) =>
@@ -316,6 +369,7 @@ export const useConversationStore = create<ConversationStore>()(
               updatedAt: new Date().toISOString(),
             },
           },
+          history: pushHistory(state),
         })),
       setExportSettings: (settings) =>
         set((state) => ({
@@ -323,10 +377,11 @@ export const useConversationStore = create<ConversationStore>()(
             ...state.exportSettings,
             ...settings,
           },
+          history: pushHistory(state),
         })),
       setUi: (updates) => set((state) => ({ ui: { ...state.ui, ...updates } })),
       resetConversation: () =>
-        set({
+        set((state) => ({
           conversation: buildDefaultConversation(),
           activeParticipantId: defaultParticipants[0].id,
           layoutId: defaultLayoutId,
@@ -337,21 +392,61 @@ export const useConversationStore = create<ConversationStore>()(
           exportSettings: { ...defaultExportSettings },
           ui: { ...defaultUiState },
           lastAutosaveAt: null,
-        }),
+          history: pushHistory(state),
+        })),
       loadConversation: (conversation) => {
         const legacyTitle = (conversation as { title?: string }).title
         const groupName =
           conversation.participants.length > 2
             ? conversation.groupName ?? legacyTitle ?? "Group Chat"
             : undefined
-        set({
+        set((state) => ({
           conversation: {
             ...conversation,
             groupName,
           },
           activeParticipantId: conversation.participants[0]?.id ?? "",
-        })
+          history: pushHistory(state),
+        }))
       },
+      undo: () =>
+        set((state) => {
+          if (state.history.past.length === 0) return state
+          const previous = state.history.past[state.history.past.length - 1]
+          return {
+            conversation: previous.conversation,
+            layoutId: previous.layoutId,
+            themeId: previous.themeId,
+            activeParticipantId: previous.activeParticipantId,
+            backgroundImageUrl: previous.backgroundImageUrl,
+            backgroundImageOpacity: previous.backgroundImageOpacity,
+            backgroundColor: previous.backgroundColor,
+            exportSettings: previous.exportSettings,
+            history: {
+              past: state.history.past.slice(0, -1),
+              future: [buildSnapshot(state), ...state.history.future].slice(0, HISTORY_LIMIT),
+            },
+          }
+        }),
+      redo: () =>
+        set((state) => {
+          if (state.history.future.length === 0) return state
+          const next = state.history.future[0]
+          return {
+            conversation: next.conversation,
+            layoutId: next.layoutId,
+            themeId: next.themeId,
+            activeParticipantId: next.activeParticipantId,
+            backgroundImageUrl: next.backgroundImageUrl,
+            backgroundImageOpacity: next.backgroundImageOpacity,
+            backgroundColor: next.backgroundColor,
+            exportSettings: next.exportSettings,
+            history: {
+              past: [...state.history.past, buildSnapshot(state)].slice(-HISTORY_LIMIT),
+              future: state.history.future.slice(1),
+            },
+          }
+        }),
       saveSnapshot: () => {
         const snapshot = get()
         try {
