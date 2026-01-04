@@ -341,7 +341,16 @@ export const MainLayout = () => {
           </main>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button variant="ghost" size="sm" asChild>
+            <a
+              href="https://github.com/quead/chat-message-simulator"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+          </Button>
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm">

@@ -33,6 +33,18 @@ const directStatusLabel = (status?: string) => {
   return "offline"
 }
 
+const getSelfParticipantId = (
+  participants: Conversation["participants"],
+  activeParticipantId: string,
+) => {
+  if (participants.length === 2) {
+    // In direct chats, treat the active participant as "you".
+    const active = participants.find((participant) => participant.id === activeParticipantId)
+    return active?.id ?? participants[0]?.id ?? ""
+  }
+  return participants[0]?.id ?? ""
+}
+
 export const ChatLayout = ({
   conversation,
   layout,
@@ -45,10 +57,10 @@ export const ChatLayout = ({
 }: ChatLayoutProps) => {
   const bodyFont = `Roboto, ${layout.fonts.body}`
   const headerFont = `Roboto, ${layout.fonts.header}`
-  const selfId = conversation.participants[0]?.id ?? ""
+  const selfId = getSelfParticipantId(conversation.participants, activeParticipantId)
   const isGroup = conversation.participants.length > 2
   const headerParticipant = !isGroup
-    ? conversation.participants.find((participant) => participant.id === activeParticipantId) ??
+    ? conversation.participants.find((participant) => participant.id !== selfId) ??
       conversation.participants[0]
     : undefined
   const title = isGroup ? getConversationTitle(conversation) : headerParticipant?.name ?? "New Chat"

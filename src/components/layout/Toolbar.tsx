@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { FileDown, FileUp, MoreHorizontal, Save, Trash2 } from "lucide-react"
+import { FileDown, FileUp, Github, MoreHorizontal, Save, Trash2 } from "lucide-react"
 import { useConversationStore } from "@/store/conversationStore"
 import { downloadJson, readJsonFile } from "@/utils/storage"
 import { Button } from "@/components/ui/button"
@@ -76,6 +76,16 @@ export const Toolbar = () => {
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <div className="hidden flex-wrap items-center gap-2 sm:flex">
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href="https://github.com/quead/chat-message-simulator"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Github className="h-4 w-4" />
+                GitHub
+              </a>
+            </Button>
             <Badge variant="secondary">{autosaveLabel}</Badge>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -167,6 +177,16 @@ export const Toolbar = () => {
             <Badge variant="secondary" className="w-full justify-center">
               {autosaveLabel}
             </Badge>
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href="https://github.com/quead/chat-message-simulator"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Github className="h-4 w-4" />
+                GitHub
+              </a>
+            </Button>
             <Button
               variant="secondary"
               size="sm"
