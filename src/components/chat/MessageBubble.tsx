@@ -4,6 +4,7 @@ import type { Participant } from "@/types/conversation"
 import type { LayoutConfig } from "@/types/layout"
 import { cn } from "@/utils/cn"
 import { formatTimestamp } from "@/utils/helpers"
+import { VerifiedBadge } from "@/components/ui/verified-badge"
 
 interface MessageBubbleProps {
   message: Message
@@ -29,6 +30,9 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
   const showMessengerAvatar = isMessenger && !isOwn
   const avatarFallback = (sender?.name || "??").slice(0, 2).toUpperCase()
   const showSender = isWhatsApp ? isGroup : isSnapchat ? true : isMessenger ? isGroup : layout.showAvatars
+  const verifiedBadge = sender?.isVerified ? (
+    <VerifiedBadge className="h-3.5 w-3.5" variant={isWhatsApp ? "whatsapp" : "default"} />
+  ) : null
   const bubbleRadius =
     isWhatsApp
       ? "rounded-[16px]"
@@ -176,7 +180,8 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
               style={{ backgroundColor: sender?.color ?? "transparent" }}
             />
           ) : null}
-          {isSnapchat ? (isOwn ? "You" : sender?.name ?? "Unknown") : sender?.name}
+          <span>{isSnapchat ? (isOwn ? "You" : sender?.name ?? "Unknown") : sender?.name}</span>
+          {verifiedBadge}
         </div>
       ) : null}
       {isMessenger ? (

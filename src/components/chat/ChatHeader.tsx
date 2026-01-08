@@ -2,12 +2,14 @@ import { ArrowLeft, Info, MoreHorizontal, Phone, Shield, Video } from "lucide-re
 import type { LayoutConfig, LayoutTheme } from "@/types/layout"
 import { cn } from "@/utils/cn"
 import { Button } from "@/components/ui/button"
+import { VerifiedBadge } from "@/components/ui/verified-badge"
 
 interface ChatHeaderProps {
   title: string
   subtitle?: string
   avatarUrl?: string
   avatarFallback?: string
+  isVerified?: boolean
   layout: LayoutConfig
   theme: LayoutTheme
 }
@@ -17,6 +19,7 @@ export const ChatHeader = ({
   subtitle,
   avatarUrl,
   avatarFallback,
+  isVerified,
   layout,
   theme,
 }: ChatHeaderProps) => {
@@ -90,8 +93,27 @@ export const ChatHeader = ({
             ? "bg-[var(--chat-border)] text-[0.7rem]"
             : isTinder
               ? "bg-[var(--chat-border)] text-[0.7rem] text-[var(--chat-muted)]"
-              : "bg-white/15 text-sm",
+      : "bg-white/15 text-sm",
   )
+  const verifiedBadge = isVerified ? (
+    <VerifiedBadge className="h-3.5 w-3.5" variant={isWhatsApp ? "whatsapp" : "default"} />
+  ) : null
+  const avatarNode =
+    showHeaderAvatar && avatarUrl ? (
+      <img
+        src={avatarUrl}
+        alt={title}
+        className={cn(
+          "rounded-full object-cover",
+          !isIMessage && "border border-white/20",
+          isSnapchat && "border-black/5",
+          isTinder && "border-[var(--chat-border)]",
+          avatarClass,
+        )}
+      />
+    ) : (
+      <div className={fallbackClass}>{fallbackText}</div>
+    )
 
   return (
     <div
@@ -124,16 +146,11 @@ export const ChatHeader = ({
               <ArrowLeft className={iconClass} />
             </Button>
             <div className="flex flex-col items-center gap-1 justify-self-center">
-              {showHeaderAvatar && avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={title}
-                  className={cn("rounded-full object-cover", avatarClass)}
-                />
-              ) : (
-                <div className={fallbackClass}>{fallbackText}</div>
-              )}
-              <div className="text-[0.85rem] font-semibold">{title}</div>
+              {avatarNode}
+              <div className="flex items-center gap-1 text-[0.85rem] font-semibold">
+                <span>{title}</span>
+                {verifiedBadge}
+              </div>
             </div>
             <div className="flex items-center justify-self-end">
               {actionIcons.map((Icon, index) => (
@@ -168,24 +185,11 @@ export const ChatHeader = ({
           <Button size="icon" variant="ghost" className={iconButtonClass}>
             <ArrowLeft className={iconClass} />
           </Button>
-            {showHeaderAvatar && avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={title}
-                className={cn(
-                  "rounded-full border border-white/20 object-cover",
-                  isSnapchat && "border-black/5",
-                  isTinder && "border-[var(--chat-border)]",
-                  avatarClass,
-                )}
-              />
-            ) : (
-              <div className={fallbackClass}>{fallbackText}</div>
-            )}
+            {avatarNode}
             <div>
               <div
                 className={cn(
-                  "font-semibold",
+                  "flex items-center gap-1 font-semibold",
                   isWhatsApp
                     ? "text-[0.95rem] leading-tight"
                     : isSnapchat
@@ -197,7 +201,8 @@ export const ChatHeader = ({
                         : "text-sm",
                 )}
               >
-                {title}
+                <span>{title}</span>
+                {verifiedBadge}
               </div>
               {layout.showStatus && subtitle ? (
                 <div

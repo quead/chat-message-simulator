@@ -112,6 +112,7 @@ export const ChatLayout = ({
           subtitle={subtitle}
           avatarUrl={!isGroup ? headerParticipant?.avatarUrl : undefined}
           avatarFallback={!isGroup ? headerParticipant?.name : title}
+          isVerified={!isGroup ? headerParticipant?.isVerified : undefined}
           layout={layout}
           theme={theme}
         />

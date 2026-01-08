@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { VerifiedBadge } from "@/components/ui/verified-badge"
 import { cn } from "@/utils/cn"
 import { readFileAsDataUrl } from "@/utils/helpers"
 
 const emptyParticipant = {
   name: "",
   avatarUrl: "",
+  isVerified: false,
   status: "online" as ParticipantStatus,
   color: "#22c55e",
 }
@@ -111,6 +114,11 @@ export const ParticipantManager = () => {
                     {participant.name.slice(0, 2).toUpperCase() || "??"}
                   </div>
                 )}
+                {participant.isVerified ? (
+                  <span className="absolute -top-1 -right-1 rounded-full bg-white p-0.5 shadow">
+                    <VerifiedBadge className="h-3.5 w-3.5" />
+                  </span>
+                ) : null}
                 <Button
                   asChild
                   variant="ghost"
@@ -164,6 +172,13 @@ export const ParticipantManager = () => {
                     onChange={(event) => updateParticipant(participant.id, { color: event.target.value })}
                   />
                 </div>
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <span className="text-xs font-medium text-slate-500">Verified badge</span>
+                  <Switch
+                    checked={Boolean(participant.isVerified)}
+                    onCheckedChange={(value) => updateParticipant(participant.id, { isVerified: value })}
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -201,6 +216,7 @@ export const ParticipantManager = () => {
               addParticipant({
                 name: draft.name.trim(),
                 avatarUrl: draft.avatarUrl || undefined,
+                isVerified: draft.isVerified,
                 status: draft.status,
                 color: draft.color,
               })
@@ -218,6 +234,13 @@ export const ParticipantManager = () => {
               Upload avatar
             </label>
           </Button>
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1">
+            <span className="text-xs text-slate-500">Verified</span>
+            <Switch
+              checked={Boolean(draft.isVerified)}
+              onCheckedChange={(value) => setDraft((prev) => ({ ...prev, isVerified: value }))}
+            />
+          </div>
           {draft.avatarUrl ? (
             <Button
               variant="ghost"

@@ -6,6 +6,7 @@ export interface Participant {
   id: string
   name: string
   avatarUrl?: string
+  isVerified?: boolean
   status: ParticipantStatus
   color: string
 }
