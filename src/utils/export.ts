@@ -1,6 +1,23 @@
 import { toJpeg, toPng } from "html-to-image"
 import type { ExportSettings } from "../store/conversationStore"
 
+const IMAGE_LOAD_TIMEOUT_MS = 3000
+const EXPORT_TIMEOUT_MS = 20000
+
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, message: string) =>
+  new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId)
+        resolve(value)
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId)
+        reject(error)
+      })
+  })
+
 export const exportNodeToImage = async (
   node: HTMLElement,
   settings: ExportSettings,
@@ -11,6 +28,7 @@ export const exportNodeToImage = async (
       if (image.loading === "lazy") {
         image.loading = "eager"
       }
+      image.decoding = "async"
       if (image.complete && image.naturalWidth > 0) {
         return Promise.resolve()
       }
@@ -19,13 +37,16 @@ export const exportNodeToImage = async (
       }
       return new Promise<void>((resolve) => {
         let settled = false
+        let timeoutId = 0
         const finish = () => {
           if (settled) return
           settled = true
+          window.clearTimeout(timeoutId)
           image.removeEventListener("load", finish)
           image.removeEventListener("error", finish)
           resolve()
         }
+        timeoutId = window.setTimeout(finish, IMAGE_LOAD_TIMEOUT_MS)
         image.addEventListener("load", finish)
         image.addEventListener("error", finish)
         if (image.decode) {
@@ -52,12 +73,13 @@ export const exportNodeToImage = async (
     },
   }
 
-  if (settings.format === "jpeg") {
-    return toJpeg(node, {
-      ...commonOptions,
-      quality: settings.quality,
-    })
-  }
+  const exportPromise =
+    settings.format === "jpeg"
+      ? toJpeg(node, {
+          ...commonOptions,
+          quality: settings.quality,
+        })
+      : toPng(node, commonOptions)
 
-  return toPng(node, commonOptions)
+  return withTimeout(exportPromise, EXPORT_TIMEOUT_MS, "Export timed out")
 }

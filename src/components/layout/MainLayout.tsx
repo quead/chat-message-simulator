@@ -3,6 +3,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  Image,
   MessagesSquare,
   Minus,
   Plus,
@@ -53,6 +54,44 @@ export const MainLayout = () => {
   const setExportSettings = useConversationStore((state) => state.setExportSettings)
   const setTheme = useConversationStore((state) => state.setTheme)
   const [isQuickExporting, setIsQuickExporting] = useState(false)
+  const [quickPreviewUrl, setQuickPreviewUrl] = useState<string | null>(null)
+  const [quickPreviewError, setQuickPreviewError] = useState<string | null>(null)
+  const [isQuickPreviewing, setIsQuickPreviewing] = useState(false)
+  const [isQuickPreviewOpen, setIsQuickPreviewOpen] = useState(false)
+
+  const handleQuickExport = async (mode: "download" | "preview") => {
+    if (!exportRef.current) return
+    const filename = `chat-export.${exportSettings.format === "jpeg" ? "jpg" : "png"}`
+    if (mode === "preview") {
+      setQuickPreviewUrl(null)
+      setQuickPreviewError(null)
+      setIsQuickPreviewing(true)
+      setIsQuickPreviewOpen(true)
+    }
+    setIsQuickExporting(true)
+    try {
+      const dataUrl = await exportNodeToImage(exportRef.current, exportSettings)
+      if (mode === "preview") {
+        setQuickPreviewUrl(dataUrl)
+        return
+      }
+      const link = document.createElement("a")
+      link.href = dataUrl
+      link.download = filename
+      link.click()
+    } catch (error) {
+      console.error("Quick export failed", error)
+      if (mode === "preview") {
+        const message = error instanceof Error ? error.message : "Unknown error"
+        setQuickPreviewError(message)
+      }
+    } finally {
+      setIsQuickExporting(false)
+      if (mode === "preview") {
+        setIsQuickPreviewing(false)
+      }
+    }
+  }
 
   const layout = layoutConfigs.find((item) => item.id === layoutId) ?? layoutConfigs[0]
   const theme = useMemo(
@@ -312,30 +351,63 @@ export const MainLayout = () => {
                       </Button>
                     ))}
                     <Button
+                      variant="outline"
                       size="lg"
                       className="gap-2"
                       disabled={isQuickExporting}
-                      onClick={async () => {
-                        if (!exportRef.current) return
-                        setIsQuickExporting(true)
-                        try {
-                          const dataUrl = await exportNodeToImage(exportRef.current, exportSettings)
-                          const link = document.createElement("a")
-                          link.href = dataUrl
-                          link.download = `chat-export.${exportSettings.format === "jpeg" ? "jpg" : "png"}`
-                          link.click()
-                        } catch (error) {
-                          console.error("Quick export failed", error)
-                        } finally {
-                          setIsQuickExporting(false)
-                        }
-                      }}
+                      onClick={() => handleQuickExport("preview")}
+                    >
+                      <Image className="h-4 w-4" />
+                      Preview
+                    </Button>
+                    <Button
+                      size="lg"
+                      className="gap-2"
+                      disabled={isQuickExporting}
+                      onClick={() => handleQuickExport("download")}
                     >
                       <Download className="h-4 w-4" />
                       Download
                     </Button>
                   </div>
                 </div>
+                <Dialog
+                  open={isQuickPreviewOpen}
+                  onOpenChange={(open) => {
+                    setIsQuickPreviewOpen(open)
+                    if (!open) {
+                      setQuickPreviewUrl(null)
+                      setQuickPreviewError(null)
+                      setIsQuickPreviewing(false)
+                    }
+                  }}
+                >
+                  <DialogContent className="w-[94vw] max-w-5xl">
+                    <DialogHeader>
+                      <DialogTitle>Export preview</DialogTitle>
+                      <DialogDescription>
+                        {exportSettings.width} x {exportSettings.height} • {exportSettings.scale}x •{" "}
+                        {exportSettings.format.toUpperCase()}
+                      </DialogDescription>
+                    </DialogHeader>
+                    {isQuickPreviewing ? (
+                      <div className="text-sm text-slate-500">Rendering preview...</div>
+                    ) : null}
+                    {quickPreviewError ? (
+                      <div className="text-sm text-red-600">Export failed: {quickPreviewError}</div>
+                    ) : null}
+                    {quickPreviewUrl ? (
+                      <div className="space-y-2">
+                        <img
+                          src={quickPreviewUrl}
+                          alt="Quick export preview"
+                          className="max-h-[70vh] w-full rounded-xl border border-slate-200 bg-slate-50 object-contain"
+                        />
+                        <div className="text-xs text-slate-500">Right click the image to save.</div>
+                      </div>
+                    ) : null}
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </main>
