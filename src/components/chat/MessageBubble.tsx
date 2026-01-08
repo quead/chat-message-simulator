@@ -5,6 +5,7 @@ import type { LayoutConfig } from "@/types/layout"
 import { cn } from "@/utils/cn"
 import { formatTimestamp } from "@/utils/helpers"
 import { VerifiedBadge } from "@/components/ui/verified-badge"
+import { AvatarImage } from "@/components/ui/avatar-image"
 
 interface MessageBubbleProps {
   message: Message
@@ -111,10 +112,10 @@ export const MessageBubble = ({
     isInstagram && !isOwn && !showInstagramAvatar ? "ml-8" : ""
   const messengerAvatar = showMessengerAvatar ? (
     sender?.avatarUrl ? (
-      <img
+      <AvatarImage
         src={sender.avatarUrl}
         alt={sender?.name || "Avatar"}
-        className="h-7 w-7 shrink-0 rounded-full object-cover"
+        className="h-7 w-7"
       />
     ) : (
       <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--chat-border)] text-[0.6rem] font-semibold text-[var(--chat-muted)]">
@@ -124,10 +125,11 @@ export const MessageBubble = ({
   ) : null
   const instagramAvatar = showInstagramAvatar ? (
     sender?.avatarUrl ? (
-      <img
+      <AvatarImage
         src={sender.avatarUrl}
         alt={sender?.name || "Avatar"}
-        className="h-6 w-6 shrink-0 rounded-full border border-[var(--chat-border)] object-cover"
+        className="h-6 w-6"
+        borderClassName="border border-[var(--chat-border)]"
       />
     ) : (
       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--chat-border)] bg-[var(--chat-border)] text-[0.55rem] font-semibold text-[var(--chat-muted)]">

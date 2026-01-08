@@ -12,6 +12,7 @@ import type { LayoutConfig, LayoutTheme } from "@/types/layout"
 import { cn } from "@/utils/cn"
 import { Button } from "@/components/ui/button"
 import { VerifiedBadge } from "@/components/ui/verified-badge"
+import { AvatarImage } from "@/components/ui/avatar-image"
 
 interface ChatHeaderProps {
   title: string
@@ -94,6 +95,11 @@ export const ChatHeader = ({
           : isTinder
             ? "h-10 w-10"
             : "h-10 w-10"
+  const avatarBorderClass = cn(
+    (isInstagram || isTinder) && "border border-[var(--chat-border)]",
+    !isIMessage && !isInstagram && !isTinder && "border border-white/20",
+    isSnapchat && "border-black/5",
+  )
   const showHeaderAvatar =
     layout.showAvatars || isIMessage || isSnapchat || isMessenger || isInstagram || isTinder
   const fallbackText = (avatarFallback || title).slice(0, 2).toUpperCase()
@@ -119,16 +125,11 @@ export const ChatHeader = ({
   ) : null
   const avatarNode =
     showHeaderAvatar && avatarUrl ? (
-      <img
+      <AvatarImage
         src={avatarUrl}
         alt={title}
-        className={cn(
-          "rounded-full object-cover",
-          (isInstagram || isTinder) && "border border-[var(--chat-border)]",
-          !isIMessage && !isInstagram && !isTinder && "border border-white/20",
-          isSnapchat && "border-black/5",
-          avatarClass,
-        )}
+        className={avatarClass}
+        borderClassName={avatarBorderClass}
       />
     ) : (
       <div className={fallbackClass}>{fallbackText}</div>

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/utils/cn"
+import { Clipboard, X } from "lucide-react"
 
 interface MessageFormProps {
   participants: Participant[]
@@ -66,6 +67,7 @@ export const MessageForm = ({
   const showAdvanced = advancedOpen ?? true
   const showAdvancedToggle = typeof advancedOpen === "boolean" && typeof onToggleAdvanced === "function"
   const previousDefaultRef = useRef(defaultSenderId)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
     if (initial) return
@@ -80,6 +82,38 @@ export const MessageForm = ({
       return current
     })
   }, [defaultSenderId, initial, participants])
+
+  const insertAtCursor = (text: string) => {
+    const element = textareaRef.current
+    if (!element) {
+      setContent((current) => (current ? `${current}\n${text}` : text))
+      return
+    }
+    const start = element.selectionStart ?? element.value.length
+    const end = element.selectionEnd ?? element.value.length
+    setContent((current) => current.slice(0, start) + text + current.slice(end))
+    requestAnimationFrame(() => {
+      element.focus()
+      const nextPos = start + text.length
+      element.setSelectionRange(nextPos, nextPos)
+    })
+  }
+
+  const handlePaste = async () => {
+    try {
+      if (navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText()
+        if (text) {
+          insertAtCursor(text)
+          return
+        }
+      }
+    } catch (error) {
+      console.error("Paste failed", error)
+    }
+    const fallback = window.prompt("Paste message")
+    if (fallback) insertAtCursor(fallback)
+  }
 
   return (
     <form
@@ -103,8 +137,23 @@ export const MessageForm = ({
       }}
     >
       <div className="space-y-2">
-        <Label>Message</Label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label>Message</Label>
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={handlePaste}>
+              <Clipboard className="h-3.5 w-3.5" />
+              Paste
+            </Button>
+            {content ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => setContent("")}>
+                <X className="h-3.5 w-3.5" />
+                Clear
+              </Button>
+            ) : null}
+          </div>
+        </div>
         <Textarea
+          ref={textareaRef}
           value={content}
           onChange={(event) => setContent(event.target.value)}
           placeholder="Write the message..."

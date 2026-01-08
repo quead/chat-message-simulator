@@ -5,6 +5,8 @@ import type { Conversation, Participant } from "../types/conversation"
 import type { Message, MessageStatus, MessageType } from "../types/message"
 import type { LayoutId, ThemeId } from "../types/layout"
 import { generateId } from "../utils/helpers"
+import avatarAvery from "@/assets/avatar-avery.svg"
+import avatarJordan from "@/assets/avatar-jordan.svg"
 
 export type ExportFormat = "png" | "jpeg"
 
@@ -93,22 +95,34 @@ const defaultParticipants: Participant[] = [
     name: "Avery",
     status: "online",
     color: "#22c55e",
-    avatarUrl: "https://i.pravatar.cc/100?img=12",
+    avatarUrl: avatarAvery,
   },
   {
     id: "p2",
     name: "Jordan",
     status: "typing",
     color: "#0b84ff",
-    avatarUrl: "https://i.pravatar.cc/100?img=32",
+    avatarUrl: avatarJordan,
   },
 ]
+
+const legacyAvatarMap: Record<string, string> = {
+  "https://i.pravatar.cc/100?img=12": avatarAvery,
+  "https://i.pravatar.cc/100?img=32": avatarJordan,
+}
+
+const normalizeParticipants = (participants: Participant[]) =>
+  participants.map((participant) => {
+    if (!participant.avatarUrl) return participant
+    const replacement = legacyAvatarMap[participant.avatarUrl]
+    return replacement ? { ...participant, avatarUrl: replacement } : participant
+  })
 
 const buildDefaultConversation = (): Conversation => {
   const now = new Date().toISOString()
   return {
     id: "conv-1",
-    participants: defaultParticipants,
+    participants: normalizeParticipants(defaultParticipants),
     messages: [
       {
         id: "m1",
@@ -396,16 +410,16 @@ export const useConversationStore = create<ConversationStore>()(
         })),
       loadConversation: (conversation) => {
         const legacyTitle = (conversation as { title?: string }).title
+        const participants = normalizeParticipants(conversation.participants)
         const groupName =
-          conversation.participants.length > 2
-            ? conversation.groupName ?? legacyTitle ?? "Group Chat"
-            : undefined
+          participants.length > 2 ? conversation.groupName ?? legacyTitle ?? "Group Chat" : undefined
         set((state) => ({
           conversation: {
             ...conversation,
+            participants,
             groupName,
           },
-          activeParticipantId: conversation.participants[0]?.id ?? "",
+          activeParticipantId: participants[0]?.id ?? "",
           history: pushHistory(state),
         }))
       },
@@ -475,6 +489,18 @@ export const useConversationStore = create<ConversationStore>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
+      version: 2,
+      migrate: (state) => {
+        if (!state) return state
+        const typed = state as ConversationStore
+        return {
+          ...typed,
+          conversation: {
+            ...typed.conversation,
+            participants: normalizeParticipants(typed.conversation.participants),
+          },
+        }
+      },
       partialize: (state) => ({
         conversation: state.conversation,
         layoutId: state.layoutId,
