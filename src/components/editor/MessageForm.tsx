@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Message } from "@/types/message"
 import type { Participant } from "@/types/conversation"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { cn } from "@/utils/cn"
 interface MessageFormProps {
   participants: Participant[]
   initial?: Message | null
+  defaultSenderId?: string
   compact?: boolean
   resetOnSubmit?: boolean
   submitLabel?: string
@@ -26,6 +27,13 @@ interface MessageFormProps {
   onCancel?: () => void
 }
 
+const resolveSenderId = (preferredId: string | undefined, participants: Participant[]) => {
+  if (preferredId && participants.some((participant) => participant.id === preferredId)) {
+    return preferredId
+  }
+  return participants[0]?.id ?? ""
+}
+
 const toInputValue = (iso: string) => {
   const date = new Date(iso)
   const offset = date.getTimezoneOffset() * 60000
@@ -37,6 +45,7 @@ const fromInputValue = (value: string) => new Date(value).toISOString()
 export const MessageForm = ({
   participants,
   initial,
+  defaultSenderId,
   compact,
   resetOnSubmit,
   submitLabel,
@@ -46,7 +55,9 @@ export const MessageForm = ({
   onCancel,
 }: MessageFormProps) => {
   const [content, setContent] = useState(initial?.content ?? "")
-  const [senderId, setSenderId] = useState(initial?.senderId ?? participants[0]?.id ?? "")
+  const [senderId, setSenderId] = useState(
+    initial?.senderId ?? resolveSenderId(defaultSenderId, participants),
+  )
   const [timestamp, setTimestamp] = useState(
     initial?.timestamp ? toInputValue(initial.timestamp) : toInputValue(new Date().toISOString()),
   )
@@ -54,6 +65,21 @@ export const MessageForm = ({
   const [status, setStatus] = useState<Message["status"]>(initial?.status ?? "sent")
   const showAdvanced = advancedOpen ?? true
   const showAdvancedToggle = typeof advancedOpen === "boolean" && typeof onToggleAdvanced === "function"
+  const previousDefaultRef = useRef(defaultSenderId)
+
+  useEffect(() => {
+    if (initial) return
+    const previousDefault = previousDefaultRef.current
+    previousDefaultRef.current = defaultSenderId
+    const nextDefault = resolveSenderId(defaultSenderId, participants)
+    setSenderId((current) => {
+      const isValid = participants.some((participant) => participant.id === current)
+      if (!current || !isValid || current === previousDefault) {
+        return nextDefault
+      }
+      return current
+    })
+  }, [defaultSenderId, initial, participants])
 
   return (
     <form
@@ -72,7 +98,7 @@ export const MessageForm = ({
           setTimestamp(toInputValue(new Date().toISOString()))
           setType("text")
           setStatus("sent")
-          setSenderId(participants[0]?.id ?? "")
+          setSenderId(resolveSenderId(defaultSenderId, participants))
         }
       }}
     >

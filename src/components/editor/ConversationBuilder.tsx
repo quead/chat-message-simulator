@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   DndContext,
   PointerSensor,
@@ -29,10 +29,19 @@ import type { Message } from "@/types/message"
 import { useConversationStore } from "@/store/conversationStore"
 import { MessageForm } from "@/components/editor/MessageForm"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/utils/cn"
 import { formatTimestamp } from "@/utils/helpers"
+
+const toDateInputValue = (iso: string) => {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+  const offset = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+}
 
 const MessageRow = ({
   message,
@@ -123,6 +132,7 @@ const MessageRow = ({
 export const ConversationBuilder = () => {
   const messages = useConversationStore((state) => state.conversation.messages)
   const participants = useConversationStore((state) => state.conversation.participants)
+  const activeParticipantId = useConversationStore((state) => state.activeParticipantId)
   const addMessage = useConversationStore((state) => state.addMessage)
   const updateMessage = useConversationStore((state) => state.updateMessage)
   const deleteMessage = useConversationStore((state) => state.deleteMessage)
@@ -133,6 +143,18 @@ export const ConversationBuilder = () => {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null)
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const [isAddOpen, setIsAddOpen] = useState(false)
+
+  const { globalDate, hasMixedDates } = useMemo(() => {
+    if (messages.length === 0) {
+      return { globalDate: "", hasMixedDates: false }
+    }
+    const dateValues = messages.map((message) => toDateInputValue(message.timestamp))
+    const uniqueDates = new Set(dateValues)
+    return {
+      globalDate: uniqueDates.size === 1 ? dateValues[0] : "",
+      hasMixedDates: uniqueDates.size > 1,
+    }
+  }, [messages])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -151,6 +173,21 @@ export const ConversationBuilder = () => {
     setMessages(arrayMove(messages, index, targetIndex))
   }
 
+  const handleGlobalDateChange = (value: string) => {
+    if (!value || messages.length === 0) return
+    const target = new Date(`${value}T00:00`)
+    if (Number.isNaN(target.getTime())) return
+    setMessages(
+      messages.map((message) => {
+        const current = new Date(message.timestamp)
+        if (Number.isNaN(current.getTime())) return message
+        const updated = new Date(current)
+        updated.setFullYear(target.getFullYear(), target.getMonth(), target.getDate())
+        return { ...message, timestamp: updated.toISOString() }
+      }),
+    )
+  }
+
   const hasHidden = messages.some((message) => message.isHidden)
   const hasVisible = messages.some((message) => !message.isHidden)
 
@@ -163,10 +200,23 @@ export const ConversationBuilder = () => {
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Messages</h4>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-slate-500">{messages.length} total</span>
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <Label className="text-[10px] uppercase text-slate-400">Global date</Label>
+                <Input
+                  type="date"
+                  value={globalDate}
+                  onChange={(event) => handleGlobalDateChange(event.target.value)}
+                  className="h-8 w-[145px] text-xs"
+                  disabled={messages.length === 0}
+                />
+                <span className="text-xs text-slate-400">
+                  {hasMixedDates ? "Mixed dates" : "Keeps time-of-day"}
+                </span>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -306,6 +356,7 @@ export const ConversationBuilder = () => {
                             key={message.id}
                             participants={participants}
                             initial={message}
+                            defaultSenderId={activeParticipantId}
                             compact
                             advancedOpen={isAdvancedOpen}
                             onToggleAdvanced={() => setIsAdvancedOpen((prev) => !prev)}
@@ -333,6 +384,7 @@ export const ConversationBuilder = () => {
                 key="new"
                 participants={participants}
                 initial={null}
+                defaultSenderId={activeParticipantId}
                 compact
                 resetOnSubmit
                 onSubmit={(payload) => {
@@ -355,5 +407,4 @@ export const ConversationBuilder = () => {
     </TooltipProvider>
   )
 }
-
 

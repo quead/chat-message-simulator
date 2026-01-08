@@ -456,6 +456,7 @@ export const useConversationStore = create<ConversationStore>()(
               conversation: snapshot.conversation,
               layoutId: snapshot.layoutId,
               themeId: snapshot.themeId,
+              activeParticipantId: snapshot.activeParticipantId,
               exportSettings: snapshot.exportSettings,
             }),
           )
@@ -478,6 +479,7 @@ export const useConversationStore = create<ConversationStore>()(
         conversation: state.conversation,
         layoutId: state.layoutId,
         themeId: state.themeId,
+        activeParticipantId: state.activeParticipantId,
         backgroundImageUrl: state.backgroundImageUrl,
         backgroundImageOpacity: state.backgroundImageOpacity,
         backgroundColor: state.backgroundColor,

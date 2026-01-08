@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ImagePlus, Star, Trash2 } from "lucide-react"
+import { ImagePlus, Star, Trash2, X } from "lucide-react"
 import type { ParticipantStatus } from "@/types/conversation"
 import { useConversationStore } from "@/store/conversationStore"
 import { Button } from "@/components/ui/button"
@@ -90,11 +90,22 @@ export const ParticipantManager = () => {
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
                 {participant.avatarUrl ? (
-                  <img
-                    src={participant.avatarUrl}
-                    alt={participant.name}
-                    className="h-12 w-12 rounded-full object-cover"
-                  />
+                  <>
+                    <img
+                      src={participant.avatarUrl}
+                      alt={participant.name}
+                      className="h-12 w-12 rounded-full object-cover"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute -top-1 -left-1 h-6 w-6 rounded-full bg-white shadow"
+                      onClick={() => updateParticipant(participant.id, { avatarUrl: undefined })}
+                    >
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">Remove avatar</span>
+                    </Button>
+                  </>
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-500">
                     {participant.name.slice(0, 2).toUpperCase() || "??"}
@@ -207,6 +218,15 @@ export const ParticipantManager = () => {
               Upload avatar
             </label>
           </Button>
+          {draft.avatarUrl ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDraft((prev) => ({ ...prev, avatarUrl: "" }))}
+            >
+              Remove avatar
+            </Button>
+          ) : null}
           <Input
             type="color"
             value={draft.color}

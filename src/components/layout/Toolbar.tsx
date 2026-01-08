@@ -13,6 +13,7 @@ const hasPersistedChange = (state: StoreState, prevState: StoreState) =>
   state.conversation !== prevState.conversation ||
   state.layoutId !== prevState.layoutId ||
   state.themeId !== prevState.themeId ||
+  state.activeParticipantId !== prevState.activeParticipantId ||
   state.backgroundImageUrl !== prevState.backgroundImageUrl ||
   state.backgroundImageOpacity !== prevState.backgroundImageOpacity ||
   state.backgroundColor !== prevState.backgroundColor ||
