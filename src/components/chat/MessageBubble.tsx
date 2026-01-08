@@ -12,6 +12,7 @@ interface MessageBubbleProps {
   isOwn: boolean
   layout: LayoutConfig
   isGroup: boolean
+  showAvatar?: boolean
 }
 
 const statusIcon = (status: Message["status"], className?: string) => {
@@ -21,15 +22,32 @@ const statusIcon = (status: Message["status"], className?: string) => {
   return <Check className={cn(iconClass, "opacity-70")} />
 }
 
-export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: MessageBubbleProps) => {
+export const MessageBubble = ({
+  message,
+  sender,
+  isOwn,
+  layout,
+  isGroup,
+  showAvatar,
+}: MessageBubbleProps) => {
   const isWhatsApp = layout.id === "whatsapp"
   const isIMessage = layout.id === "imessage"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
+  const isInstagram = layout.id === "instagram"
   const isTinder = layout.id === "tinder"
   const showMessengerAvatar = isMessenger && !isOwn
+  const showInstagramAvatar = isInstagram && !isOwn && Boolean(showAvatar)
   const avatarFallback = (sender?.name || "??").slice(0, 2).toUpperCase()
-  const showSender = isWhatsApp ? isGroup : isSnapchat ? true : isMessenger ? isGroup : layout.showAvatars
+  const showSender = isWhatsApp
+    ? isGroup
+    : isSnapchat
+      ? true
+      : isMessenger
+        ? isGroup
+        : isInstagram
+          ? isGroup
+          : layout.showAvatars
   const verifiedBadge = sender?.isVerified ? (
     <VerifiedBadge className="h-3.5 w-3.5" variant={isWhatsApp ? "whatsapp" : "default"} />
   ) : null
@@ -42,13 +60,15 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
           ? "rounded-none"
           : isMessenger
             ? "rounded-[20px]"
-            : isTinder
-              ? "rounded-[22px]"
-              : layout.bubbleStyle === "sharp"
-                ? "rounded-md"
-                : layout.bubbleStyle === "minimal"
-                  ? "rounded-lg"
-                  : "rounded-2xl"
+            : isInstagram
+              ? "rounded-[20px]"
+              : isTinder
+                ? "rounded-[22px]"
+                : layout.bubbleStyle === "sharp"
+                  ? "rounded-md"
+                  : layout.bubbleStyle === "minimal"
+                    ? "rounded-lg"
+                    : "rounded-2xl"
   const bubbleColor = isOwn ? "var(--bubble-sent)" : "var(--bubble-received)"
   const textColor = isOwn ? "var(--bubble-sent-text)" : "var(--bubble-received-text)"
   const snapBorderColor = isOwn ? "var(--bubble-sent)" : "var(--bubble-received)"
@@ -59,6 +79,10 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
 
   if (isWhatsApp) {
     bubbleStyle["--bubble-color"] = bubbleColor
+  }
+  if (isInstagram && isOwn) {
+    bubbleStyle.backgroundImage =
+      "linear-gradient(135deg, #7c3aed 0%, #6366f1 55%, #3b82f6 100%)"
   }
   if (isSnapchat) {
     bubbleStyle.backgroundColor = "transparent"
@@ -82,6 +106,9 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
       : isOwn
         ? "ml-auto"
         : "mr-auto"
+  const bubbleAlignmentClass = showInstagramAvatar ? "" : bubbleAlignment
+  const instagramIndentClass =
+    isInstagram && !isOwn && !showInstagramAvatar ? "ml-8" : ""
   const messengerAvatar = showMessengerAvatar ? (
     sender?.avatarUrl ? (
       <img
@@ -95,12 +122,26 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
       </div>
     )
   ) : null
+  const instagramAvatar = showInstagramAvatar ? (
+    sender?.avatarUrl ? (
+      <img
+        src={sender.avatarUrl}
+        alt={sender?.name || "Avatar"}
+        className="h-6 w-6 shrink-0 rounded-full border border-[var(--chat-border)] object-cover"
+      />
+    ) : (
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--chat-border)] bg-[var(--chat-border)] text-[0.55rem] font-semibold text-[var(--chat-muted)]">
+        {avatarFallback}
+      </div>
+    )
+  ) : null
   const bubbleContent = (
     <div
       className={cn(
         "px-3 py-2 text-sm shadow-sm",
         bubbleRadius,
-        bubbleAlignment,
+        bubbleAlignmentClass,
+        instagramIndentClass,
         isWhatsApp
           ? "whatsapp-bubble relative max-w-[80%] px-3 py-1.5 text-[0.94rem] leading-[1.3] shadow-[0_1px_1px_rgba(0,0,0,0.08)]"
           : isIMessage
@@ -109,9 +150,11 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
               ? "max-w-[82%] px-3 py-1 text-[0.95rem] leading-[1.35] shadow-none"
               : isMessenger
                 ? "max-w-[78%] px-3 py-2 text-[0.95rem] leading-[1.35] shadow-none"
-                : isTinder
-                  ? "max-w-[72%] px-4 py-2 text-[0.95rem] leading-[1.35] shadow-none"
-                  : "max-w-[78%]",
+                : isInstagram
+                  ? "max-w-[78%] px-3 py-2 text-[0.95rem] leading-[1.35] shadow-none"
+                  : isTinder
+                    ? "max-w-[72%] px-4 py-2 text-[0.95rem] leading-[1.35] shadow-none"
+                    : "max-w-[78%]",
         isWhatsApp && (isOwn ? "whatsapp-bubble--own" : "whatsapp-bubble--other"),
       )}
       style={bubbleStyle}
@@ -162,6 +205,8 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
                 ? "font-semibold text-[0.7rem] uppercase tracking-wide"
                 : isMessenger
                   ? "font-semibold text-[0.7rem]"
+                  : isInstagram
+                    ? "font-semibold text-[0.7rem]"
                 : "text-slate-200",
           )}
           style={
@@ -171,7 +216,9 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
                 ? { color: snapBorderColor }
                 : isMessenger
                   ? { color: "var(--chat-muted)" }
-                : undefined
+                  : isInstagram
+                    ? { color: "var(--chat-muted)" }
+                    : undefined
           }
         >
           {!isWhatsApp && !isSnapchat ? (
@@ -198,10 +245,15 @@ export const MessageBubble = ({ message, sender, isOwn, layout, isGroup }: Messa
             </>
           )}
         </div>
+      ) : showInstagramAvatar ? (
+        <div className="flex w-full items-end gap-2">
+          {instagramAvatar}
+          {bubbleContent}
+        </div>
       ) : (
         bubbleContent
       )}
-      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger && !isTinder ? (
+      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
         <div
           className={cn(
             "flex items-center gap-2 text-[0.7rem]",

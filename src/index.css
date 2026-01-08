@@ -80,26 +80,3 @@
   position: relative;
 }
 
-.layout-whatsapp .whatsapp-bubble--own::after,
-.layout-whatsapp .whatsapp-bubble--other::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  width: 0;
-  height: 0;
-  border-style: solid;
-}
-
-.layout-whatsapp .whatsapp-bubble--own::after {
-  right: -5px;
-  bottom: 1px;
-  border-width: 6px 0 6px 13px;
-  border-color: transparent transparent transparent var(--bubble-color);
-}
-
-.layout-whatsapp .whatsapp-bubble--other::after {
-  left: -5px;
-  bottom: 1px;
-  border-width: 6px 13px 6px 0;
-  border-color: transparent var(--bubble-color) transparent transparent;
-}

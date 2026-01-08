@@ -2,7 +2,7 @@ import type { Message } from "@/types/message"
 import type { Participant } from "@/types/conversation"
 import type { LayoutConfig } from "@/types/layout"
 import { MessageBubble } from "@/components/chat/MessageBubble"
-import { formatDateSeparator } from "@/utils/helpers"
+import { formatDateSeparator, formatInstagramDateSeparator } from "@/utils/helpers"
 import { cn } from "@/utils/cn"
 
 interface ConversationViewProps {
@@ -22,6 +22,7 @@ export const ConversationView = ({
   const isWhatsApp = layout.id === "whatsapp"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
+  const isInstagram = layout.id === "instagram"
   const isTinder = layout.id === "tinder"
   const isGroup = participants.length > 2
   const dateBadgeClass = cn(
@@ -32,8 +33,10 @@ export const ConversationView = ({
         ? "bg-black/5 text-[0.6rem] font-medium text-[var(--chat-muted)]"
         : isMessenger
           ? "bg-transparent text-[0.6rem] font-medium text-[var(--chat-muted)]"
-          : isTinder
-            ? "bg-transparent text-[0.55rem] font-semibold uppercase tracking-wide text-[var(--chat-muted)]"
+          : isInstagram
+            ? "bg-transparent text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[var(--chat-muted)]"
+            : isTinder
+              ? "bg-transparent text-[0.55rem] font-semibold uppercase tracking-wide text-[var(--chat-muted)]"
         : "bg-white/20 text-[var(--chat-muted)]",
   )
   const systemMessageClass = cn(
@@ -44,8 +47,10 @@ export const ConversationView = ({
         ? "bg-black/5 text-[var(--chat-muted)]"
         : isMessenger
           ? "bg-transparent text-[var(--chat-muted)]"
-          : isTinder
+          : isInstagram
             ? "bg-transparent text-[var(--chat-muted)]"
+            : isTinder
+              ? "bg-transparent text-[var(--chat-muted)]"
         : "bg-white/15 text-[var(--chat-muted)]",
   )
 
@@ -59,8 +64,10 @@ export const ConversationView = ({
             ? "gap-2 px-2.5 py-4"
             : isMessenger
               ? "gap-3 px-3 py-4"
-              : isTinder
-                ? "gap-2.5 px-4 py-4"
+              : isInstagram
+                ? "gap-3 px-3 py-4"
+                : isTinder
+                  ? "gap-2.5 px-4 py-4"
             : "gap-4 px-4 py-6",
       )}
     >
@@ -73,10 +80,18 @@ export const ConversationView = ({
       ) : null}
       {visibleMessages.map((message, index) => {
         const sender = participants.find((participant) => participant.id === message.senderId)
-        const currentDate = formatDateSeparator(message.timestamp)
-        const previousDate =
+        const currentDate = isInstagram
+          ? formatInstagramDateSeparator(message.timestamp)
+          : formatDateSeparator(message.timestamp)
+        const currentDateKey = formatDateSeparator(message.timestamp)
+        const previousDateKey =
           index > 0 ? formatDateSeparator(visibleMessages[index - 1].timestamp) : ""
-        const showDate = currentDate !== previousDate
+        const showDate = currentDateKey !== previousDateKey
+        const isOwn = message.senderId === selfId
+        const nextMessage = visibleMessages[index + 1]
+        const isLastFromSender =
+          !nextMessage || nextMessage.senderId !== message.senderId || nextMessage.type === "system"
+        const showAvatar = isInstagram && !isOwn && isLastFromSender
 
         if (message.type === "system") {
           return (
@@ -93,9 +108,10 @@ export const ConversationView = ({
             <MessageBubble
               message={message}
               sender={sender}
-              isOwn={message.senderId === selfId}
+              isOwn={isOwn}
               layout={layout}
               isGroup={isGroup}
+              showAvatar={showAvatar}
             />
           </div>
         )

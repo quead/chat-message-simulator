@@ -24,6 +24,14 @@ export const formatDateSeparator = (timestamp: string) => {
   }
 }
 
+export const formatInstagramDateSeparator = (timestamp: string) => {
+  try {
+    return format(new Date(timestamp), "d MMM 'AT' HH:mm").toUpperCase()
+  } catch {
+    return ""
+  }
+}
+
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
 

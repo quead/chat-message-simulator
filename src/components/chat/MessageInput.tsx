@@ -1,4 +1,4 @@
-import { Camera, ImagePlus, Mic, Plus, Send, Smile } from "lucide-react"
+import { Camera, ImagePlus, Mic, Plus, Send, Smile, Sticker } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/utils/cn"
 import type { LayoutConfig } from "@/types/layout"
@@ -13,9 +13,10 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
   const isIMessage = layout?.id === "imessage"
   const isSnapchat = layout?.id === "snapchat"
   const isMessenger = layout?.id === "messenger"
+  const isInstagram = layout?.id === "instagram"
   const isTinder = layout?.id === "tinder"
   const iconClass =
-    isWhatsApp || isIMessage || isSnapchat || isMessenger || isTinder
+    isWhatsApp || isIMessage || isSnapchat || isMessenger || isInstagram || isTinder
       ? "h-[18px] w-[18px]"
       : "h-4 w-4"
   const iconButtonClass = cn(
@@ -24,6 +25,7 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
     isIMessage && "h-8 w-8 rounded-full",
     isSnapchat && "h-8 w-8 rounded-full text-[var(--chat-header-text)] hover:bg-black/5",
     isMessenger && "h-8 w-8 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(0,132,255,0.1)]",
+    isInstagram && "h-8 w-8 rounded-full text-[var(--chat-header-text)] hover:bg-black/5",
     isTinder && "h-9 w-9 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(253,80,104,0.12)]",
   )
   const inputPlaceholder = isIMessage
@@ -32,9 +34,11 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
       ? "Chat"
       : isMessenger
         ? "Aa"
-        : isTinder
-          ? "Say something nice"
-        : placeholder
+        : isInstagram
+          ? "Message..."
+          : isTinder
+            ? "Say something nice"
+            : placeholder
 
   return (
     <div
@@ -44,6 +48,7 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
         isIMessage && "border-black/5 px-3 py-2",
         isSnapchat && "gap-2 border-black/5 px-3 py-2",
         isMessenger && "gap-2 border-black/5 px-3 py-2",
+        isInstagram && "gap-2 border-[var(--chat-border)] px-3 py-2",
         isTinder && "gap-2.5 border-black/5 px-4 py-3",
       )}
       style={{ backgroundColor: "var(--chat-input)" }}
@@ -75,6 +80,18 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
           <Plus className={iconClass} />
         </Button>
       ) : null}
+      {isInstagram ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full text-white shadow-sm hover:bg-transparent"
+          style={{
+            backgroundImage: "linear-gradient(135deg, #7c3aed 0%, #6366f1 55%, #3b82f6 100%)",
+          }}
+        >
+          <Camera className={iconClass} />
+        </Button>
+      ) : null}
       {isSnapchat ? (
         <Button
           variant="ghost"
@@ -97,12 +114,12 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
         <Button variant="ghost" size="icon" className={iconButtonClass}>
           <Plus className={iconClass} />
         </Button>
-      ) : !isIMessage && !isSnapchat && !isMessenger && !isTinder ? (
+      ) : !isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
         <Button variant="ghost" size="icon" className={iconButtonClass}>
           <Smile className={iconClass} />
         </Button>
       ) : null}
-      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger && !isTinder ? (
+      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
         <Button variant="ghost" size="icon" className={iconButtonClass}>
           <ImagePlus className={iconClass} />
         </Button>
@@ -114,12 +131,16 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
           isIMessage && "flex items-center gap-2 border py-2 text-[0.95rem]",
           isSnapchat && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
           isMessenger && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
+          isInstagram && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
           isTinder && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
         )}
         style={{
           backgroundColor: "var(--chat-input-inner)",
           color: "var(--chat-text)",
-          borderColor: isIMessage || isSnapchat || isMessenger || isTinder ? "var(--chat-border)" : undefined,
+          borderColor:
+            isIMessage || isSnapchat || isMessenger || isInstagram || isTinder
+              ? "var(--chat-border)"
+              : undefined,
         }}
       >
         {isIMessage ? <Camera className={cn(iconClass, "text-[var(--chat-muted)]")} /> : null}
@@ -153,6 +174,26 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
           </Button>
         </>
       ) : null}
+      {isInstagram ? (
+        <>
+          <Button variant="ghost" size="icon" className={iconButtonClass}>
+            <Mic className={iconClass} />
+          </Button>
+          <Button variant="ghost" size="icon" className={iconButtonClass}>
+            <ImagePlus className={iconClass} />
+          </Button>
+          <Button variant="ghost" size="icon" className={iconButtonClass}>
+            <Sticker className={iconClass} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(iconButtonClass, "border border-[var(--chat-border)]")}
+          >
+            <Plus className={iconClass} />
+          </Button>
+        </>
+      ) : null}
       {isWhatsApp ? (
         <Button
           size="icon"
@@ -174,7 +215,7 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
         >
           <Send className={iconClass} />
         </Button>
-      ) : !isSnapchat && !isMessenger && !isTinder ? (
+      ) : !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
         <>
           <Button variant="ghost" size="icon" className={iconButtonClass}>
             <Mic className={iconClass} />

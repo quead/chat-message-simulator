@@ -3,6 +3,7 @@ export type LayoutId =
   | "imessage"
   | "snapchat"
   | "messenger"
+  | "instagram"
   | "tinder"
 
 export type ThemeId = "light" | "dark"

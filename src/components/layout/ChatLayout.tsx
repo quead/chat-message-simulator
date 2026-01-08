@@ -1,5 +1,5 @@
 import type { Conversation } from "@/types/conversation"
-import type { LayoutConfig, LayoutTheme } from "@/types/layout"
+import type { LayoutConfig, LayoutId, LayoutTheme } from "@/types/layout"
 import { ChatHeader } from "@/components/chat/ChatHeader"
 import { ConversationView } from "@/components/chat/ConversationView"
 import { MessageInput } from "@/components/chat/MessageInput"
@@ -26,7 +26,13 @@ const groupStatusLabel = (participants: Conversation["participants"]) => {
   return "Offline"
 }
 
-const directStatusLabel = (status?: string) => {
+const directStatusLabel = (status?: string, layoutId?: LayoutId) => {
+  if (layoutId === "instagram") {
+    if (status === "typing") return "Typing..."
+    if (status === "online") return "Active now"
+    if (status === "empty") return ""
+    return "Active yesterday"
+  }
   if (status === "typing") return "typing..."
   if (status === "online") return "online"
   if (status === "empty") return ""
@@ -66,7 +72,7 @@ export const ChatLayout = ({
   const title = isGroup ? getConversationTitle(conversation) : headerParticipant?.name ?? "New Chat"
   const subtitle = isGroup
     ? groupStatusLabel(conversation.participants)
-    : directStatusLabel(headerParticipant?.status)
+    : directStatusLabel(headerParticipant?.status, layout.id)
 
   return (
     <div
