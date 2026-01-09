@@ -13,4 +13,43 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined
+          }
+          if (id.includes("node_modules/react")) {
+            return "react"
+          }
+          if (id.includes("node_modules/react-dom")) {
+            return "react-dom"
+          }
+          if (id.includes("node_modules/@radix-ui")) {
+            return "radix-ui"
+          }
+          if (id.includes("node_modules/@dnd-kit")) {
+            return "dnd-kit"
+          }
+          if (id.includes("node_modules/date-fns")) {
+            return "date-fns"
+          }
+          if (id.includes("node_modules/html-to-image")) {
+            return "html-to-image"
+          }
+          if (id.includes("node_modules/lucide-react")) {
+            return "lucide"
+          }
+          if (id.includes("node_modules/zustand")) {
+            return "zustand"
+          }
+          if (id.includes("node_modules/tailwind-merge")) {
+            return "tailwind-merge"
+          }
+          return "vendor"
+        },
+      },
+    },
+  },
 })

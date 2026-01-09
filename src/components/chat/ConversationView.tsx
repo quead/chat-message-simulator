@@ -91,7 +91,7 @@ export const ConversationView = ({
         const nextMessage = visibleMessages[index + 1]
         const isLastFromSender =
           !nextMessage || nextMessage.senderId !== message.senderId || nextMessage.type === "system"
-        const showAvatar = isInstagram && !isOwn && isLastFromSender
+        const showAvatar = (isInstagram || isMessenger) && !isOwn && isLastFromSender
 
         if (message.type === "system") {
           return (

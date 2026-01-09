@@ -37,7 +37,7 @@ export const MessageBubble = ({
   const isMessenger = layout.id === "messenger"
   const isInstagram = layout.id === "instagram"
   const isTinder = layout.id === "tinder"
-  const showMessengerAvatar = isMessenger && !isOwn
+  const showMessengerAvatar = isMessenger && !isOwn && Boolean(showAvatar)
   const showInstagramAvatar = isInstagram && !isOwn && Boolean(showAvatar)
   const avatarFallback = (sender?.name || "??").slice(0, 2).toUpperCase()
   const showSender = isWhatsApp
@@ -110,6 +110,8 @@ export const MessageBubble = ({
   const bubbleAlignmentClass = showInstagramAvatar ? "" : bubbleAlignment
   const instagramIndentClass =
     isInstagram && !isOwn && !showInstagramAvatar ? "ml-8" : ""
+  const messengerIndentClass =
+    isMessenger && !isOwn && !showMessengerAvatar ? "ml-8" : ""
   const messengerAvatar = showMessengerAvatar ? (
     sender?.avatarUrl ? (
       <AvatarImage
@@ -144,6 +146,7 @@ export const MessageBubble = ({
         bubbleRadius,
         bubbleAlignmentClass,
         instagramIndentClass,
+        messengerIndentClass,
         isWhatsApp
           ? "whatsapp-bubble relative max-w-[80%] px-3 py-1.5 text-[0.94rem] leading-[1.3] shadow-[0_1px_1px_rgba(0,0,0,0.08)]"
           : isIMessage
