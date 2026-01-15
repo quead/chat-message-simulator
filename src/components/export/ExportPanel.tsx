@@ -17,9 +17,10 @@ import {
 
 interface ExportPanelProps {
   targetRef: React.RefObject<HTMLDivElement | null> | React.RefObject<HTMLDivElement>
+  getExportOffset?: () => { x: number; y: number }
 }
 
-export const ExportPanel = ({ targetRef }: ExportPanelProps) => {
+export const ExportPanel = ({ targetRef, getExportOffset }: ExportPanelProps) => {
   const exportSettings = useConversationStore((state) => state.exportSettings)
   const setExportSettings = useConversationStore((state) => state.setExportSettings)
   const [isExporting, setIsExporting] = useState(false)
@@ -47,7 +48,8 @@ export const ExportPanel = ({ targetRef }: ExportPanelProps) => {
     }
     setIsExporting(true)
     try {
-      const dataUrl = await exportNodeToImage(targetRef.current, exportSettings)
+      const offset = getExportOffset?.()
+      const dataUrl = await exportNodeToImage(targetRef.current, exportSettings, offset)
       if (mode === "preview") {
         setPreviewUrl(dataUrl)
         return
@@ -70,14 +72,14 @@ export const ExportPanel = ({ targetRef }: ExportPanelProps) => {
     }
   }
 
-  const settingsSummary = `${exportSettings.width} x ${exportSettings.height} • ${exportSettings.scale}x • ${exportSettings.format.toUpperCase()}`
+  const settingsSummary = `${exportSettings.width} x ${exportSettings.height} - ${exportSettings.scale}x - ${exportSettings.format.toUpperCase()}`
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">Download Options</h3>
-          <p className="text-xs text-slate-500">Craft export-ready dimensions and quality.</p>
+          <h3 className="text-sm font-semibold text-slate-900">Export</h3>
+          <p className="text-xs text-slate-500">Set size, format, and quality before exporting.</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => setIsSummaryOpen(!isSummaryOpen)}>
           {isSummaryOpen ? "Collapse" : "Expand"}
@@ -236,7 +238,7 @@ export const ExportPanel = ({ targetRef }: ExportPanelProps) => {
 
       {preset ? (
         <p className="text-xs text-slate-500">
-          Preset: {preset.label} • {preset.width} x {preset.height}
+          Preset: {preset.label} - {preset.width} x {preset.height}
         </p>
       ) : (
         <p className="text-xs text-slate-500">Custom size active.</p>

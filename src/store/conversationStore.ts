@@ -71,6 +71,7 @@ interface ConversationStore {
   addMessage: (payload: {
     senderId: string
     content: string
+    imageUrl?: string
     timestamp: string
     type: MessageType
     status: MessageStatus

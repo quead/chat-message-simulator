@@ -100,6 +100,20 @@ export const MessageBubble = ({
     }
   }
 
+  const imageRadius = isWhatsApp
+    ? "rounded-[12px]"
+    : isIMessage
+      ? "rounded-[16px]"
+      : isSnapchat
+        ? "rounded-none"
+        : isMessenger
+          ? "rounded-[16px]"
+          : isInstagram
+            ? "rounded-[16px]"
+            : isTinder
+              ? "rounded-[18px]"
+              : "rounded-lg"
+
   const bubbleAlignment = isMessenger
     ? ""
     : isSnapchat
@@ -142,7 +156,8 @@ export const MessageBubble = ({
   const bubbleContent = (
     <div
       className={cn(
-        "px-3 py-2 text-sm shadow-sm",
+        "text-sm shadow-sm",
+        message.type === "image" ? "p-1" : "px-3 py-2",
         bubbleRadius,
         bubbleAlignmentClass,
         instagramIndentClass,
@@ -160,14 +175,40 @@ export const MessageBubble = ({
                   : isTinder
                     ? "max-w-[72%] px-4 py-2 text-[0.95rem] leading-[1.35] shadow-none"
                     : "max-w-[78%]",
+        message.type === "image" && "p-1",
         isWhatsApp && (isOwn ? "whatsapp-bubble--own" : "whatsapp-bubble--other"),
       )}
       style={bubbleStyle}
     >
       {message.type === "image" ? (
         <div className="space-y-2">
-          <div className="h-24 w-40 rounded-lg border border-white/20 bg-white/10" />
-          <p className="text-xs opacity-75">Image placeholder</p>
+          {message.imageUrl ? (
+            <img
+              src={message.imageUrl}
+              alt={message.content || "Uploaded message"}
+              className={cn(
+                "max-h-64 w-full max-w-[240px] border border-white/20 object-cover",
+                imageRadius,
+              )}
+            />
+          ) : (
+            <div className="h-24 w-40 rounded-lg border border-white/20 bg-white/10" />
+          )}
+          {message.content ? (
+            <p
+              className={cn(
+                "mt-1 max-w-[240px] whitespace-pre-wrap break-words px-2 pb-1 text-[0.8rem] leading-snug",
+                isWhatsApp && "text-[0.75rem]",
+                isIMessage && "text-[0.82rem]",
+                isSnapchat && "text-[0.75rem] uppercase tracking-wide",
+                isMessenger && "text-[0.8rem]",
+                isInstagram && "text-[0.8rem]",
+                isTinder && "text-[0.8rem]",
+              )}
+            >
+              {message.content}
+            </p>
+          ) : null}
         </div>
       ) : (
         <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>

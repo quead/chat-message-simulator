@@ -311,7 +311,9 @@ export const ConversationBuilder = () => {
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Conversation Builder</h3>
-          <p className="text-xs text-slate-500">Add, reorder, and refine each message.</p>
+          <p className="text-xs text-slate-500">
+            Add messages, drag to reorder, or switch to Easy mode for bulk edits.
+          </p>
         </div>
 
         <div className="space-y-2">

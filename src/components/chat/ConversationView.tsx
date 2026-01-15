@@ -57,7 +57,7 @@ export const ConversationView = ({
   return (
     <div
       className={cn(
-        "relative z-10 flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain",
+        "relative z-10 flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain hide-scrollbar",
         isWhatsApp
           ? "gap-1 px-3 py-4"
           : isSnapchat

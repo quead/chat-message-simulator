@@ -35,8 +35,8 @@ export const SettingsPanel = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">Settings</h3>
-        <p className="text-xs text-slate-500">Tweak layout, theme, and preview controls.</p>
+        <h3 className="text-sm font-semibold text-slate-900">Appearance & Preview</h3>
+        <p className="text-xs text-slate-500">Control layout, theme, and preview behavior.</p>
       </div>
 
       <div className="space-y-2">

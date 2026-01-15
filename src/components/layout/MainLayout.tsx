@@ -40,6 +40,7 @@ import { exportNodeToImage } from "@/utils/export"
 export const MainLayout = () => {
   const exportRef = useRef<HTMLDivElement | null>(null)
   const previewContainerRef = useRef<HTMLDivElement | null>(null)
+  const previewScrollRef = useRef<HTMLDivElement | null>(null)
   const [fitScale, setFitScale] = useState(1)
   const conversation = useConversationStore((state) => state.conversation)
   const layoutId = useConversationStore((state) => state.layoutId)
@@ -70,7 +71,7 @@ export const MainLayout = () => {
     }
     setIsQuickExporting(true)
     try {
-      const dataUrl = await exportNodeToImage(exportRef.current, exportSettings)
+      const dataUrl = await exportNodeToImage(exportRef.current, exportSettings, getPreviewOffset())
       if (mode === "preview") {
         setQuickPreviewUrl(dataUrl)
         return
@@ -138,16 +139,72 @@ export const MainLayout = () => {
     }
   }, [exportSettings.width, exportSettings.height, ui.activeView, ui.autoFit])
 
+  useEffect(() => {
+    if (ui.activeView === "preview" || !ui.isSidebarOpen) {
+      setUi({ activeView: "editor", isSidebarOpen: true })
+    }
+  }, [setUi, ui.activePanel])
+
   const appliedScale = clamp((ui.autoFit ? fitScale : 1) * ui.zoom, 0.1, 2)
   const scaledWidth = exportSettings.width * appliedScale
   const scaledHeight = exportSettings.height * appliedScale
+  const getPreviewOffset = () => {
+    const scrollElement = previewScrollRef.current
+    const exportElement = exportRef.current
+    if (!scrollElement || !exportElement || appliedScale === 0) {
+      return { x: 0, y: 0 }
+    }
+    const scrollRect = scrollElement.getBoundingClientRect()
+    const exportRect = exportElement.getBoundingClientRect()
+    const deltaX = scrollRect.left - exportRect.left
+    const deltaY = scrollRect.top - exportRect.top
+    const rawX = deltaX / appliedScale
+    const rawY = deltaY / appliedScale
+    const viewWidth = scrollElement.clientWidth / appliedScale
+    const viewHeight = scrollElement.clientHeight / appliedScale
+    const maxX = Math.max(0, exportSettings.width - viewWidth)
+    const maxY = Math.max(0, exportSettings.height - viewHeight)
+    const offsetX = clamp(rawX, 0, maxX)
+    const offsetY = clamp(rawY, 0, maxY)
+    return {
+      x: Number.isFinite(offsetX) ? offsetX : 0,
+      y: Number.isFinite(offsetY) ? offsetY : 0,
+    }
+  }
 
   const panelTabs = [
-    { id: "messages", label: "Messages", icon: MessagesSquare },
-    { id: "participants", label: "Participants", icon: Users },
-    { id: "settings", label: "Settings", icon: SlidersHorizontal },
-    { id: "export", label: "Download", icon: Download },
+    {
+      id: "participants",
+      label: "Participants",
+      icon: Users,
+      description: "Add people, avatars, and presence details.",
+      meta: `${conversation.participants.length} people`,
+    },
+    {
+      id: "messages",
+      label: "Messages",
+      icon: MessagesSquare,
+      description: "Write, reorder, and time the chat flow.",
+      meta: `${conversation.messages.length} messages`,
+    },
+    {
+      id: "settings",
+      label: "Appearance",
+      icon: SlidersHorizontal,
+      description: "Pick layout, theme, and background polish.",
+      meta: `${layout.name} ${theme.name}`,
+    },
+    {
+      id: "export",
+      label: "Export",
+      icon: Download,
+      description: "Set size, format, and download exports.",
+      meta: `${exportSettings.width} x ${exportSettings.height}`,
+    },
   ] as const
+  const activePanelIndex = panelTabs.findIndex((tab) => tab.id === ui.activePanel)
+  const resolvedActivePanelIndex = activePanelIndex === -1 ? 0 : activePanelIndex
+  const activePanel = panelTabs[resolvedActivePanelIndex] ?? panelTabs[0]
 
   const quickPresetIds = new Set(["iphone-14-pro", "ipad", "desktop"])
   const quickPresets: SizePreset[] = sizePresets.filter((preset) => quickPresetIds.has(preset.id))
@@ -157,43 +214,68 @@ export const MainLayout = () => {
       <div className="mx-auto flex flex-col gap-6 px-4 pt-6 pb-24 lg:pb-6">
         <Toolbar />
 
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Workflow
+                </div>
+                <div className="text-sm font-semibold text-slate-900">
+                  Step {resolvedActivePanelIndex + 1} of {panelTabs.length}: {activePanel.label}
+                </div>
+                <p className="text-xs text-slate-500">{activePanel.description}</p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-4">
+              {panelTabs.map((tab) => {
+                const Icon = tab.icon
+                const isActive = ui.activePanel === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() =>
+                      setUi({ activePanel: tab.id, activeView: "editor", isSidebarOpen: true })
+                    }
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition",
+                      isActive
+                        ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold",
+                        isActive ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="font-medium">{tab.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
           <aside
             className={cn(
               "space-y-6",
-              (!ui.isSidebarOpen || ui.activeView === "preview") && "hidden lg:block",
+              ui.isSidebarOpen && ui.activeView !== "preview" ? "block" : "hidden",
             )}
           >
             <Card>
-              <CardHeader>
-                <div className="text-sm font-semibold text-slate-900">Panels</div>
-                <p className="text-xs text-slate-500">Jump between messages, participants, settings, and export.</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {panelTabs.map((tab) => {
-                    const Icon = tab.icon
-                    const isActive = ui.activePanel === tab.id
-                    return (
-                      <Button
-                        key={tab.id}
-                        variant={isActive ? "default" : "outline"}
-                        size="sm"
-                        onClick={() =>
-                          setUi({ activePanel: tab.id, activeView: "editor", isSidebarOpen: true })
-                        }
-                        className="justify-start gap-2"
-                      >
-                        <Icon className="h-4 w-4" />
-                        {tab.label}
-                      </Button>
-                    )
-                  })}
-                </div>
-              </CardHeader>
               <CardContent className="space-y-6">
                 {ui.activePanel === "participants" ? <ParticipantManager /> : null}
                 {ui.activePanel === "messages" ? <ConversationBuilder /> : null}
                 {ui.activePanel === "settings" ? <SettingsPanel /> : null}
-                {ui.activePanel === "export" ? <ExportPanel targetRef={exportRef} /> : null}
+                {ui.activePanel === "export" ? (
+                  <ExportPanel targetRef={exportRef} getExportOffset={getPreviewOffset} />
+                ) : null}
               </CardContent>
             </Card>
           </aside>
@@ -203,10 +285,23 @@ export const MainLayout = () => {
               <CardHeader className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold text-slate-900">Live Preview</div>
-                    <p className="text-xs text-slate-500">Real-time look at the selected layout.</p>
+                    <div className="text-sm font-semibold text-slate-900">Preview canvas</div>
+                    <p className="text-xs text-slate-500">Live view of your layout and message flow.</p>
                   </div>
                   <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 sm:w-auto sm:flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="hidden lg:inline-flex"
+                      onClick={() =>
+                        setUi({
+                          isSidebarOpen: !ui.isSidebarOpen,
+                          activeView: ui.isSidebarOpen ? "preview" : "editor",
+                        })
+                      }
+                    >
+                      {ui.isSidebarOpen ? "Focus preview" : "Show editor"}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -250,7 +345,10 @@ export const MainLayout = () => {
                   ref={previewContainerRef}
                   className="flex h-[60vh] items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-4 lg:h-[70vh]"
                 >
-                  <div className="flex h-full w-full items-start justify-start overflow-auto">
+                  <div
+                    ref={previewScrollRef}
+                    className="hide-scrollbar flex h-full w-full items-start justify-start overflow-auto"
+                  >
                     <div
                       className="relative m-auto"
                       style={{
@@ -310,7 +408,9 @@ export const MainLayout = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setUi({ activePanel: "settings", activeView: "editor", isSidebarOpen: true })}
+                    onClick={() =>
+                      setUi({ activePanel: "settings", activeView: "editor", isSidebarOpen: true })
+                    }
                   >
                     More settings
                   </Button>
@@ -386,7 +486,7 @@ export const MainLayout = () => {
                     <DialogHeader>
                       <DialogTitle>Export preview</DialogTitle>
                       <DialogDescription>
-                        {exportSettings.width} x {exportSettings.height} • {exportSettings.scale}x •{" "}
+                        {exportSettings.width} x {exportSettings.height} - {exportSettings.scale}x -{" "}
                         {exportSettings.format.toUpperCase()}
                       </DialogDescription>
                     </DialogHeader>

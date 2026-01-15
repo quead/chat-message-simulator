@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/utils/cn"
-import { Clipboard, X } from "lucide-react"
+import { readFileAsDataUrl } from "@/utils/helpers"
+import { Clipboard, ImagePlus, X } from "lucide-react"
 
 interface MessageFormProps {
   participants: Participant[]
@@ -21,6 +22,7 @@ interface MessageFormProps {
   onSubmit: (payload: {
     senderId: string
     content: string
+    imageUrl?: string
     timestamp: string
     type: Message["type"]
     status: Message["status"]
@@ -64,10 +66,13 @@ export const MessageForm = ({
   )
   const [type, setType] = useState<Message["type"]>(initial?.type ?? "text")
   const [status, setStatus] = useState<Message["status"]>(initial?.status ?? "sent")
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "")
+  const [imageError, setImageError] = useState<string | null>(null)
   const showAdvanced = advancedOpen ?? true
   const showAdvancedToggle = typeof advancedOpen === "boolean" && typeof onToggleAdvanced === "function"
   const previousDefaultRef = useRef(defaultSenderId)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (initial) return
@@ -115,14 +120,38 @@ export const MessageForm = ({
     if (fallback) insertAtCursor(fallback)
   }
 
+  const handleImageUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setImageError("Only image files are allowed.")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Image must be smaller than 5MB.")
+      return
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file)
+      setImageUrl(dataUrl)
+      setImageError(null)
+    } catch (error) {
+      console.error("Failed to read image file", error)
+      setImageError("Could not read the selected image.")
+    }
+  }
+
   return (
     <form
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault()
+        if (type === "image" && !imageUrl) {
+          setImageError("Please upload an image for this message.")
+          return
+        }
         onSubmit({
           senderId,
           content,
+          imageUrl: type === "image" ? imageUrl : undefined,
           timestamp: fromInputValue(timestamp),
           type,
           status,
@@ -133,12 +162,14 @@ export const MessageForm = ({
           setType("text")
           setStatus("sent")
           setSenderId(resolveSenderId(defaultSenderId, participants))
+          setImageUrl("")
+          setImageError(null)
         }
       }}
     >
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label>Message</Label>
+          <Label>{type === "image" ? "Caption" : "Message"}</Label>
           <div className="flex items-center gap-2">
             <Button type="button" size="sm" variant="ghost" onClick={handlePaste}>
               <Clipboard className="h-3.5 w-3.5" />
@@ -156,10 +187,62 @@ export const MessageForm = ({
           ref={textareaRef}
           value={content}
           onChange={(event) => setContent(event.target.value)}
-          placeholder="Write the message..."
+          placeholder={type === "image" ? "Add a caption (optional)..." : "Write the message..."}
           className={cn(compact && "min-h-[72px]")}
         />
       </div>
+
+      {type === "image" ? (
+        <div className="space-y-2">
+          <Label>Image upload</Label>
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+            <div className="h-20 w-28 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+              {imageUrl ? (
+                <img src={imageUrl} alt="Uploaded preview" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-slate-400">
+                  No image
+                </div>
+              )}
+            </div>
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-2"
+              >
+                <ImagePlus className="h-4 w-4" />
+                Upload image
+              </Button>
+              {imageUrl ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setImageUrl("")}>
+                  Remove
+                </Button>
+              ) : null}
+              <span className="text-xs text-slate-500">JPG, PNG, or WEBP up to 5MB.</span>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (event) => {
+                const file = event.target.files?.[0]
+                if (!file) return
+                await handleImageUpload(file)
+                event.target.value = ""
+              }}
+            />
+          </div>
+          {imageError ? (
+            <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+              {imageError}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {showAdvanced ? (
         <>
@@ -192,14 +275,23 @@ export const MessageForm = ({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Type</Label>
-              <Select value={type} onValueChange={(value) => setType(value as Message["type"])}>
+              <Select
+                value={type}
+                onValueChange={(value) => {
+                  const nextType = value as Message["type"]
+                  setType(nextType)
+                  if (nextType !== "image") {
+                    setImageError(null)
+                  }
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="text">Text</SelectItem>
                   <SelectItem value="system">System</SelectItem>
-                  <SelectItem value="image">Image placeholder</SelectItem>
+                  <SelectItem value="image">Image</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -221,7 +313,17 @@ export const MessageForm = ({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit">{submitLabel ?? (initial ? "Save changes" : "Add message")}</Button>
+        <Button
+          type="submit"
+          disabled={type === "image" && !imageUrl}
+          onClick={() => {
+            if (type === "image" && !imageUrl) {
+              setImageError("Please upload an image for this message.")
+            }
+          }}
+        >
+          {submitLabel ?? (initial ? "Save changes" : "Add message")}
+        </Button>
         {initial ? (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel

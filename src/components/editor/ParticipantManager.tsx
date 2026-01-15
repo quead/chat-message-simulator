@@ -76,7 +76,9 @@ export const ParticipantManager = () => {
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-slate-900">Participants</h3>
-        <p className="text-xs text-slate-500">Manage contacts, avatars, and active sender.</p>
+        <p className="text-xs text-slate-500">
+          Manage contacts, avatars, and choose who is sending the next message.
+        </p>
       </div>
 
       {error ? <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div> : null}

@@ -21,6 +21,7 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, message: string)
 export const exportNodeToImage = async (
   node: HTMLElement,
   settings: ExportSettings,
+  offset?: { x: number; y: number },
 ): Promise<string> => {
   const images = Array.from(node.querySelectorAll("img"))
   await Promise.all(
@@ -57,6 +58,9 @@ export const exportNodeToImage = async (
   )
   const imagePlaceholder =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
+  const transform = offset
+    ? `translate(${-offset.x}px, ${-offset.y}px) scale(1)`
+    : "scale(1)"
   const commonOptions = {
     width: settings.width,
     height: settings.height,
@@ -65,7 +69,7 @@ export const exportNodeToImage = async (
     useCORS: true,
     imagePlaceholder,
     style: {
-      transform: "scale(1)",
+      transform,
       transformOrigin: "top left",
       width: `${settings.width}px`,
       height: `${settings.height}px`,
