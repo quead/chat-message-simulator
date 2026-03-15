@@ -7,7 +7,7 @@ import type { LayoutId, ThemeId } from "../types/layout"
 import { generateId } from "../utils/helpers"
 
 export type ExportFormat = "png" | "jpeg"
-export type ExportCaptureMode = "viewport" | "full"
+export type ExportCaptureMode = "viewport" | "full" | "screens"
 
 export interface ExportSettings {
   presetId: string

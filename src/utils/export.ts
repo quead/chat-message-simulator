@@ -18,6 +18,15 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, message: string)
       })
   })
 
+interface ExportRenderOptions {
+  offset?: { x: number; y: number }
+  scrollRootOverrides?: Array<{
+    index?: number
+    top?: number
+    left?: number
+  }>
+}
+
 const waitForImages = async (node: HTMLElement) => {
   const images = Array.from(node.querySelectorAll("img"))
   await Promise.all(
@@ -54,7 +63,7 @@ const waitForImages = async (node: HTMLElement) => {
   )
 }
 
-const buildExportClone = (node: HTMLElement) => {
+const buildExportClone = (node: HTMLElement, options?: ExportRenderOptions) => {
   const wrapper = document.createElement("div")
   wrapper.setAttribute("aria-hidden", "true")
   Object.assign(wrapper.style, {
@@ -85,8 +94,9 @@ const buildExportClone = (node: HTMLElement) => {
     const cloneContent = cloneRoot.querySelector<HTMLElement>('[data-conversation-content="true"]')
     if (!sourceContent || !cloneContent) return
 
-    const scrollTop = sourceRoot.scrollTop
-    const scrollLeft = sourceRoot.scrollLeft
+    const override = options?.scrollRootOverrides?.find((entry) => (entry.index ?? 0) === index)
+    const scrollTop = override?.top ?? sourceRoot.scrollTop
+    const scrollLeft = override?.left ?? sourceRoot.scrollLeft
     if (!scrollTop && !scrollLeft) return
 
     cloneRoot.style.overflow = "hidden"
@@ -103,13 +113,13 @@ const buildExportClone = (node: HTMLElement) => {
 export const exportNodeToImage = async (
   node: HTMLElement,
   settings: ExportSettings,
-  offset?: { x: number; y: number },
+  options?: ExportRenderOptions,
 ): Promise<string> => {
-  const { clone, cleanup } = buildExportClone(node)
+  const { clone, cleanup } = buildExportClone(node, options)
   const imagePlaceholder =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
-  const transform = offset
-    ? `translate(${-offset.x}px, ${-offset.y}px) scale(1)`
+  const transform = options?.offset
+    ? `translate(${-options.offset.x}px, ${-options.offset.y}px) scale(1)`
     : "scale(1)"
   try {
     await waitForImages(clone)
@@ -142,4 +152,17 @@ export const exportNodeToImage = async (
   } finally {
     cleanup()
   }
+}
+
+export const exportNodeToImageSequence = async (
+  node: HTMLElement,
+  settings: ExportSettings,
+  renders: ExportRenderOptions[],
+): Promise<string[]> => {
+  const jobs = renders.length ? renders : [{}]
+  const dataUrls: string[] = []
+  for (const renderOptions of jobs) {
+    dataUrls.push(await exportNodeToImage(node, settings, renderOptions))
+  }
+  return dataUrls
 }

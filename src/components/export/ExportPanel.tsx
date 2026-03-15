@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SizePresets } from "@/components/export/SizePresets"
 import { sizePresets } from "@/constants/exportPresets"
-import { exportNodeToImage } from "@/utils/export"
+import { exportNodeToImageSequence } from "@/utils/export"
 import { useConversationStore } from "@/store/conversationStore"
 import {
   Dialog,
@@ -19,15 +19,28 @@ interface ExportPanelProps {
   targetRef: React.RefObject<HTMLDivElement | null> | React.RefObject<HTMLDivElement>
   getExportOffset?: () => { x: number; y: number }
   resolvedHeight?: number
+  screenScrollTops?: number[]
 }
 
-export const ExportPanel = ({ targetRef, getExportOffset, resolvedHeight }: ExportPanelProps) => {
+const buildDownloadName = (format: "png" | "jpeg", index?: number) => {
+  const extension = format === "jpeg" ? "jpg" : "png"
+  if (index === undefined) {
+    return `chat-export.${extension}`
+  }
+  return `chat-export-${String(index + 1).padStart(2, "0")}.${extension}`
+}
+
+export const ExportPanel = ({
+  targetRef,
+  getExportOffset,
+  resolvedHeight,
+  screenScrollTops = [0],
+}: ExportPanelProps) => {
   const exportSettings = useConversationStore((state) => state.exportSettings)
   const setExportSettings = useConversationStore((state) => state.setExportSettings)
   const [isExporting, setIsExporting] = useState(false)
   const [isSummaryOpen, setIsSummaryOpen] = useState(true)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [previewFilename, setPreviewFilename] = useState<string>("")
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [isPreviewing, setIsPreviewing] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -45,29 +58,46 @@ export const ExportPanel = ({ targetRef, getExportOffset, resolvedHeight }: Expo
     () => sizePresets.find((item) => item.id === exportSettings.presetId),
     [exportSettings.presetId],
   )
+  const screenCount = Math.max(screenScrollTops.length, 1)
 
   const runExport = async (mode: "download" | "preview") => {
     if (!targetRef.current) return
-    const filename = `chat-export.${exportSettings.format === "jpeg" ? "jpg" : "png"}`
     if (mode === "preview") {
-      setPreviewFilename(filename)
-      setPreviewUrl(null)
+      setPreviewUrls([])
       setPreviewError(null)
       setIsPreviewing(true)
       setIsPreviewOpen(true)
     }
     setIsExporting(true)
     try {
-      const offset = exportSettings.captureMode === "full" ? undefined : getExportOffset?.()
-      const dataUrl = await exportNodeToImage(targetRef.current, effectiveExportSettings, offset)
+      const renderOptions =
+        exportSettings.captureMode === "screens"
+          ? screenScrollTops.map((top) => ({
+              scrollRootOverrides: [{ top }],
+            }))
+          : [
+              {
+                offset: exportSettings.captureMode === "full" ? undefined : getExportOffset?.(),
+              },
+            ]
+      const dataUrls = await exportNodeToImageSequence(
+        targetRef.current,
+        effectiveExportSettings,
+        renderOptions,
+      )
       if (mode === "preview") {
-        setPreviewUrl(dataUrl)
+        setPreviewUrls(dataUrls)
         return
       }
-      const link = document.createElement("a")
-      link.href = dataUrl
-      link.download = filename
-      link.click()
+      dataUrls.forEach((dataUrl, index) => {
+        const link = document.createElement("a")
+        link.href = dataUrl
+        link.download =
+          exportSettings.captureMode === "screens"
+            ? buildDownloadName(exportSettings.format, index)
+            : buildDownloadName(exportSettings.format)
+        link.click()
+      })
     } catch (error) {
       console.error("Export failed", error)
       if (mode === "preview") {
@@ -82,7 +112,13 @@ export const ExportPanel = ({ targetRef, getExportOffset, resolvedHeight }: Expo
     }
   }
 
-  const settingsSummary = `${exportSettings.width} x ${effectiveHeight} - ${exportSettings.scale}x - ${exportSettings.format.toUpperCase()} - ${exportSettings.captureMode === "full" ? "All messages" : "Current viewport"}`
+  const captureSummary =
+    exportSettings.captureMode === "full"
+      ? "All messages"
+      : exportSettings.captureMode === "screens"
+        ? `${screenCount} subsequent screens`
+        : "Current viewport"
+  const settingsSummary = `${exportSettings.width} x ${effectiveHeight} - ${exportSettings.scale}x - ${exportSettings.format.toUpperCase()} - ${captureSummary}`
 
   return (
     <div className="space-y-4">
@@ -215,11 +251,19 @@ export const ExportPanel = ({ targetRef, getExportOffset, resolvedHeight }: Expo
           >
             All messages
           </Button>
+          <Button
+            variant={exportSettings.captureMode === "screens" ? "default" : "outline"}
+            onClick={() => setExportSettings({ captureMode: "screens" })}
+          >
+            Subsequent screens
+          </Button>
         </div>
         <p className="text-xs text-slate-500">
           {exportSettings.captureMode === "full"
             ? `Height expands automatically to ${effectiveHeight}px so every visible message is included.`
-            : "Export exactly what is visible in the device frame right now."}
+            : exportSettings.captureMode === "screens"
+              ? `Automatically splits the thread into ${screenCount} device-sized screenshots based on the current export height.`
+              : "Export exactly what is visible in the device frame right now."}
         </p>
       </div>
 
@@ -239,7 +283,7 @@ export const ExportPanel = ({ targetRef, getExportOffset, resolvedHeight }: Expo
         onOpenChange={(open) => {
           setIsPreviewOpen(open)
           if (!open) {
-            setPreviewUrl(null)
+            setPreviewUrls([])
             setPreviewError(null)
             setIsPreviewing(false)
           }
@@ -256,14 +300,31 @@ export const ExportPanel = ({ targetRef, getExportOffset, resolvedHeight }: Expo
           {previewError ? (
             <div className="text-sm text-red-600">Export failed: {previewError}</div>
           ) : null}
-          {previewUrl ? (
-            <div className="space-y-2">
-              <img
-                src={previewUrl}
-                alt={previewFilename || "Export preview"}
-                className="max-h-[70vh] w-full rounded-xl border border-slate-200 bg-slate-50 object-contain"
-              />
-              <div className="text-xs text-slate-500">Right click the image to save.</div>
+          {previewUrls.length ? (
+            <div className="space-y-3">
+              {previewUrls.map((previewUrl, index) => (
+                <div key={previewUrl} className="space-y-2">
+                  {previewUrls.length > 1 ? (
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Screen {index + 1}
+                    </div>
+                  ) : null}
+                  <img
+                    src={previewUrl}
+                    alt={
+                      previewUrls.length > 1
+                        ? `Export preview screen ${index + 1}`
+                        : "Export preview"
+                    }
+                    className="max-h-[70vh] w-full rounded-xl border border-slate-200 bg-slate-50 object-contain"
+                  />
+                </div>
+              ))}
+              <div className="text-xs text-slate-500">
+                {previewUrls.length > 1
+                  ? "Download saves one image per screen in order."
+                  : "Right click the image to save."}
+              </div>
             </div>
           ) : null}
         </DialogContent>

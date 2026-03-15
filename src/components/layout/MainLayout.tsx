@@ -35,7 +35,15 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/utils/cn"
 import { clamp } from "@/utils/helpers"
-import { exportNodeToImage } from "@/utils/export"
+import { exportNodeToImageSequence } from "@/utils/export"
+
+const buildDownloadName = (format: "png" | "jpeg", index?: number) => {
+  const extension = format === "jpeg" ? "jpg" : "png"
+  if (index === undefined) {
+    return `chat-export.${extension}`
+  }
+  return `chat-export-${String(index + 1).padStart(2, "0")}.${extension}`
+}
 
 export const MainLayout = () => {
   const exportRef = useRef<HTMLDivElement | null>(null)
@@ -59,7 +67,7 @@ export const MainLayout = () => {
   const setExportSettings = useConversationStore((state) => state.setExportSettings)
   const setTheme = useConversationStore((state) => state.setTheme)
   const [isQuickExporting, setIsQuickExporting] = useState(false)
-  const [quickPreviewUrl, setQuickPreviewUrl] = useState<string | null>(null)
+  const [quickPreviewUrls, setQuickPreviewUrls] = useState<string[]>([])
   const [quickPreviewError, setQuickPreviewError] = useState<string | null>(null)
   const [isQuickPreviewing, setIsQuickPreviewing] = useState(false)
   const [isQuickPreviewOpen, setIsQuickPreviewOpen] = useState(false)
@@ -73,25 +81,38 @@ export const MainLayout = () => {
   const handleQuickExport = async (mode: "download" | "preview") => {
     const target = exportSettings.captureMode === "full" ? fullExportRef.current : exportRef.current
     if (!target) return
-    const filename = `chat-export.${exportSettings.format === "jpeg" ? "jpg" : "png"}`
     if (mode === "preview") {
-      setQuickPreviewUrl(null)
+      setQuickPreviewUrls([])
       setQuickPreviewError(null)
       setIsQuickPreviewing(true)
       setIsQuickPreviewOpen(true)
     }
     setIsQuickExporting(true)
     try {
-      const offset = exportSettings.captureMode === "full" ? undefined : getPreviewOffset()
-      const dataUrl = await exportNodeToImage(target, resolvedExportSettings, offset)
+      const renderOptions =
+        exportSettings.captureMode === "screens"
+          ? screenScrollTops.map((top) => ({
+              scrollRootOverrides: [{ top }],
+            }))
+          : [
+              {
+                offset: exportSettings.captureMode === "full" ? undefined : getPreviewOffset(),
+              },
+            ]
+      const dataUrls = await exportNodeToImageSequence(target, resolvedExportSettings, renderOptions)
       if (mode === "preview") {
-        setQuickPreviewUrl(dataUrl)
+        setQuickPreviewUrls(dataUrls)
         return
       }
-      const link = document.createElement("a")
-      link.href = dataUrl
-      link.download = filename
-      link.click()
+      dataUrls.forEach((dataUrl, index) => {
+        const link = document.createElement("a")
+        link.href = dataUrl
+        link.download =
+          exportSettings.captureMode === "screens"
+            ? buildDownloadName(exportSettings.format, index)
+            : buildDownloadName(exportSettings.format)
+        link.click()
+      })
     } catch (error) {
       console.error("Quick export failed", error)
       if (mode === "preview") {
@@ -237,6 +258,28 @@ export const MainLayout = () => {
     }),
     [exportSettings, resolvedExportHeight],
   )
+  const screenScrollTops = useMemo(() => {
+    const viewportHeight = Math.round(conversationMetrics.viewportHeight)
+    const contentHeight = Math.round(conversationMetrics.contentHeight)
+    if (!viewportHeight || !contentHeight) {
+      return [0]
+    }
+
+    const maxScroll = Math.max(0, contentHeight - viewportHeight)
+    if (maxScroll === 0) {
+      return [0]
+    }
+
+    const positions: number[] = []
+    for (let top = 0; top < maxScroll; top += viewportHeight) {
+      positions.push(top)
+    }
+    if (positions[positions.length - 1] !== maxScroll) {
+      positions.push(maxScroll)
+    }
+    return positions
+  }, [conversationMetrics.contentHeight, conversationMetrics.viewportHeight])
+  const screenCount = Math.max(screenScrollTops.length, 1)
   const getPreviewOffset = () => {
     const scrollElement = previewScrollRef.current
     const exportElement = exportRef.current
@@ -377,6 +420,7 @@ export const MainLayout = () => {
                       exportSettings.captureMode === "full" ? undefined : getPreviewOffset
                     }
                     resolvedHeight={resolvedExportHeight}
+                    screenScrollTops={screenScrollTops}
                   />
                 ) : null}
               </CardContent>
@@ -581,11 +625,20 @@ export const MainLayout = () => {
                         >
                           All messages
                         </Button>
+                        <Button
+                          variant={exportSettings.captureMode === "screens" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setExportSettings({ captureMode: "screens" })}
+                        >
+                          {screenCount} screens
+                        </Button>
                       </div>
                       <p className="text-xs text-slate-500">
                         {exportSettings.captureMode === "full"
                           ? `Exports every visible message in a ${exportSettings.width} x ${resolvedExportHeight}px image.`
-                          : "Exports the device frame exactly as it appears in the preview."}
+                          : exportSettings.captureMode === "screens"
+                            ? `Splits the chat into ${screenCount} consecutive device screenshots based on the current export size.`
+                            : "Exports the device frame exactly as it appears in the preview."}
                       </p>
                     </div>
                   </div>
@@ -626,7 +679,7 @@ export const MainLayout = () => {
                   onOpenChange={(open) => {
                     setIsQuickPreviewOpen(open)
                     if (!open) {
-                      setQuickPreviewUrl(null)
+                      setQuickPreviewUrls([])
                       setQuickPreviewError(null)
                       setIsQuickPreviewing(false)
                     }
@@ -639,7 +692,11 @@ export const MainLayout = () => {
                         {resolvedExportSettings.width} x {resolvedExportSettings.height} -{" "}
                         {resolvedExportSettings.scale}x -{" "}
                         {resolvedExportSettings.format.toUpperCase()} -{" "}
-                        {exportSettings.captureMode === "full" ? "All messages" : "Current viewport"}
+                        {exportSettings.captureMode === "full"
+                          ? "All messages"
+                          : exportSettings.captureMode === "screens"
+                            ? `${screenCount} subsequent screens`
+                            : "Current viewport"}
                       </DialogDescription>
                     </DialogHeader>
                     {isQuickPreviewing ? (
@@ -648,14 +705,31 @@ export const MainLayout = () => {
                     {quickPreviewError ? (
                       <div className="text-sm text-red-600">Export failed: {quickPreviewError}</div>
                     ) : null}
-                    {quickPreviewUrl ? (
-                      <div className="space-y-2">
-                        <img
-                          src={quickPreviewUrl}
-                          alt="Quick export preview"
-                          className="max-h-[70vh] w-full rounded-xl border border-slate-200 bg-slate-50 object-contain"
-                        />
-                        <div className="text-xs text-slate-500">Right click the image to save.</div>
+                    {quickPreviewUrls.length ? (
+                      <div className="space-y-3">
+                        {quickPreviewUrls.map((quickPreviewUrl, index) => (
+                          <div key={quickPreviewUrl} className="space-y-2">
+                            {quickPreviewUrls.length > 1 ? (
+                              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                Screen {index + 1}
+                              </div>
+                            ) : null}
+                            <img
+                              src={quickPreviewUrl}
+                              alt={
+                                quickPreviewUrls.length > 1
+                                  ? `Quick export preview screen ${index + 1}`
+                                  : "Quick export preview"
+                              }
+                              className="max-h-[70vh] w-full rounded-xl border border-slate-200 bg-slate-50 object-contain"
+                            />
+                          </div>
+                        ))}
+                        <div className="text-xs text-slate-500">
+                          {quickPreviewUrls.length > 1
+                            ? "Download saves one file per screen in order."
+                            : "Right click the image to save."}
+                        </div>
                       </div>
                     ) : null}
                   </DialogContent>
