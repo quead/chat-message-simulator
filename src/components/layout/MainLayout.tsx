@@ -685,7 +685,7 @@ export const MainLayout = () => {
                     }
                   }}
                 >
-                  <DialogContent className="w-[94vw] max-w-5xl">
+                  <DialogContent className="w-[94vw] max-w-5xl max-h-[88vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Export preview</DialogTitle>
                       <DialogDescription>
