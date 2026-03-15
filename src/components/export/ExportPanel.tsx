@@ -18,9 +18,10 @@ import {
 interface ExportPanelProps {
   targetRef: React.RefObject<HTMLDivElement | null> | React.RefObject<HTMLDivElement>
   getExportOffset?: () => { x: number; y: number }
+  resolvedHeight?: number
 }
 
-export const ExportPanel = ({ targetRef, getExportOffset }: ExportPanelProps) => {
+export const ExportPanel = ({ targetRef, getExportOffset, resolvedHeight }: ExportPanelProps) => {
   const exportSettings = useConversationStore((state) => state.exportSettings)
   const setExportSettings = useConversationStore((state) => state.setExportSettings)
   const [isExporting, setIsExporting] = useState(false)
@@ -30,6 +31,15 @@ export const ExportPanel = ({ targetRef, getExportOffset }: ExportPanelProps) =>
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [isPreviewing, setIsPreviewing] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+
+  const effectiveHeight =
+    exportSettings.captureMode === "full"
+      ? Math.max(resolvedHeight ?? exportSettings.height, exportSettings.height)
+      : exportSettings.height
+  const effectiveExportSettings = {
+    ...exportSettings,
+    height: effectiveHeight,
+  }
 
   const preset = useMemo(
     () => sizePresets.find((item) => item.id === exportSettings.presetId),
@@ -48,8 +58,8 @@ export const ExportPanel = ({ targetRef, getExportOffset }: ExportPanelProps) =>
     }
     setIsExporting(true)
     try {
-      const offset = getExportOffset?.()
-      const dataUrl = await exportNodeToImage(targetRef.current, exportSettings, offset)
+      const offset = exportSettings.captureMode === "full" ? undefined : getExportOffset?.()
+      const dataUrl = await exportNodeToImage(targetRef.current, effectiveExportSettings, offset)
       if (mode === "preview") {
         setPreviewUrl(dataUrl)
         return
@@ -72,7 +82,7 @@ export const ExportPanel = ({ targetRef, getExportOffset }: ExportPanelProps) =>
     }
   }
 
-  const settingsSummary = `${exportSettings.width} x ${exportSettings.height} - ${exportSettings.scale}x - ${exportSettings.format.toUpperCase()}`
+  const settingsSummary = `${exportSettings.width} x ${effectiveHeight} - ${exportSettings.scale}x - ${exportSettings.format.toUpperCase()} - ${exportSettings.captureMode === "full" ? "All messages" : "Current viewport"}`
 
   return (
     <div className="space-y-4">
@@ -188,6 +198,29 @@ export const ExportPanel = ({ targetRef, getExportOffset }: ExportPanelProps) =>
             JPEG
           </Button>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Capture</Label>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={exportSettings.captureMode === "viewport" ? "default" : "outline"}
+            onClick={() => setExportSettings({ captureMode: "viewport" })}
+          >
+            Current viewport
+          </Button>
+          <Button
+            variant={exportSettings.captureMode === "full" ? "default" : "outline"}
+            onClick={() => setExportSettings({ captureMode: "full" })}
+          >
+            All messages
+          </Button>
+        </div>
+        <p className="text-xs text-slate-500">
+          {exportSettings.captureMode === "full"
+            ? `Height expands automatically to ${effectiveHeight}px so every visible message is included.`
+            : "Export exactly what is visible in the device frame right now."}
+        </p>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">

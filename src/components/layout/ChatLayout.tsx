@@ -14,6 +14,9 @@ interface ChatLayoutProps {
   backgroundImageUrl: string
   backgroundImageOpacity: number
   backgroundColor: string
+  conversationMode?: "scroll" | "expanded"
+  conversationContainerRef?: React.Ref<HTMLDivElement>
+  conversationContentRef?: React.Ref<HTMLDivElement>
 }
 
 const groupStatusLabel = (participants: Conversation["participants"]) => {
@@ -60,6 +63,9 @@ export const ChatLayout = ({
   backgroundImageUrl,
   backgroundImageOpacity,
   backgroundColor,
+  conversationMode = "scroll",
+  conversationContainerRef,
+  conversationContentRef,
 }: ChatLayoutProps) => {
   const bodyFont = `Roboto, ${layout.fonts.body}`
   const headerFont = `Roboto, ${layout.fonts.header}`
@@ -129,6 +135,9 @@ export const ChatLayout = ({
           participants={conversation.participants}
           layout={layout}
           selfId={selfId}
+          mode={conversationMode}
+          containerRef={conversationContainerRef}
+          contentRef={conversationContentRef}
         />
       </div>
       {showChrome ? <MessageInput layout={layout} /> : null}

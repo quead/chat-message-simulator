@@ -39,8 +39,11 @@ import { exportNodeToImage } from "@/utils/export"
 
 export const MainLayout = () => {
   const exportRef = useRef<HTMLDivElement | null>(null)
+  const fullExportRef = useRef<HTMLDivElement | null>(null)
   const previewContainerRef = useRef<HTMLDivElement | null>(null)
   const previewScrollRef = useRef<HTMLDivElement | null>(null)
+  const previewConversationRef = useRef<HTMLDivElement | null>(null)
+  const previewConversationContentRef = useRef<HTMLDivElement | null>(null)
   const [fitScale, setFitScale] = useState(1)
   const conversation = useConversationStore((state) => state.conversation)
   const layoutId = useConversationStore((state) => state.layoutId)
@@ -50,6 +53,7 @@ export const MainLayout = () => {
   const backgroundImageOpacity = useConversationStore((state) => state.backgroundImageOpacity)
   const backgroundColor = useConversationStore((state) => state.backgroundColor)
   const ui = useConversationStore((state) => state.ui)
+  const previousActivePanelRef = useRef(ui.activePanel)
   const setUi = useConversationStore((state) => state.setUi)
   const exportSettings = useConversationStore((state) => state.exportSettings)
   const setExportSettings = useConversationStore((state) => state.setExportSettings)
@@ -59,9 +63,16 @@ export const MainLayout = () => {
   const [quickPreviewError, setQuickPreviewError] = useState<string | null>(null)
   const [isQuickPreviewing, setIsQuickPreviewing] = useState(false)
   const [isQuickPreviewOpen, setIsQuickPreviewOpen] = useState(false)
+  const [conversationMetrics, setConversationMetrics] = useState({
+    contentHeight: 0,
+    viewportHeight: 0,
+    fullExportHeight: 0,
+    hasOverflow: false,
+  })
 
   const handleQuickExport = async (mode: "download" | "preview") => {
-    if (!exportRef.current) return
+    const target = exportSettings.captureMode === "full" ? fullExportRef.current : exportRef.current
+    if (!target) return
     const filename = `chat-export.${exportSettings.format === "jpeg" ? "jpg" : "png"}`
     if (mode === "preview") {
       setQuickPreviewUrl(null)
@@ -71,7 +82,8 @@ export const MainLayout = () => {
     }
     setIsQuickExporting(true)
     try {
-      const dataUrl = await exportNodeToImage(exportRef.current, exportSettings, getPreviewOffset())
+      const offset = exportSettings.captureMode === "full" ? undefined : getPreviewOffset()
+      const dataUrl = await exportNodeToImage(target, resolvedExportSettings, offset)
       if (mode === "preview") {
         setQuickPreviewUrl(dataUrl)
         return
@@ -140,14 +152,91 @@ export const MainLayout = () => {
   }, [exportSettings.width, exportSettings.height, ui.activeView, ui.autoFit])
 
   useEffect(() => {
-    if (ui.activeView === "preview" || !ui.isSidebarOpen) {
+    if (previousActivePanelRef.current !== ui.activePanel && (ui.activeView === "preview" || !ui.isSidebarOpen)) {
       setUi({ activeView: "editor", isSidebarOpen: true })
     }
-  }, [setUi, ui.activePanel])
+    previousActivePanelRef.current = ui.activePanel
+  }, [setUi, ui.activePanel, ui.activeView, ui.isSidebarOpen])
+
+  useEffect(() => {
+    const container = previewConversationRef.current
+    const content = previewConversationContentRef.current
+    const exportElement = exportRef.current
+    if (!container || !content || !exportElement) return
+
+    let frame = 0
+    const measureConversation = () => {
+      frame = 0
+      const viewportHeight = container.clientHeight
+      if (!viewportHeight) return
+      const contentHeight = Math.ceil(Math.max(content.scrollHeight, content.offsetHeight))
+      const chromeHeight = Math.max(0, exportElement.clientHeight - viewportHeight)
+      const fullExportHeight = Math.max(exportSettings.height, Math.ceil(chromeHeight + contentHeight))
+      const hasOverflow = contentHeight > viewportHeight + 1
+      setConversationMetrics((previous) => {
+        if (
+          previous.contentHeight === contentHeight &&
+          previous.viewportHeight === viewportHeight &&
+          previous.fullExportHeight === fullExportHeight &&
+          previous.hasOverflow === hasOverflow
+        ) {
+          return previous
+        }
+        return {
+          contentHeight,
+          viewportHeight,
+          fullExportHeight,
+          hasOverflow,
+        }
+      })
+    }
+    const scheduleMeasure = () => {
+      if (frame) {
+        cancelAnimationFrame(frame)
+      }
+      frame = requestAnimationFrame(measureConversation)
+    }
+
+    scheduleMeasure()
+
+    const observer = new ResizeObserver(scheduleMeasure)
+    observer.observe(container)
+    observer.observe(content)
+    observer.observe(exportElement)
+
+    const images = Array.from(content.querySelectorAll("img"))
+    images.forEach((image) => {
+      image.addEventListener("load", scheduleMeasure)
+      image.addEventListener("error", scheduleMeasure)
+    })
+
+    return () => {
+      if (frame) {
+        cancelAnimationFrame(frame)
+      }
+      observer.disconnect()
+      images.forEach((image) => {
+        image.removeEventListener("load", scheduleMeasure)
+        image.removeEventListener("error", scheduleMeasure)
+      })
+    }
+  }, [conversation, exportSettings.height, layout.id, theme.id, ui.showChrome])
 
   const appliedScale = clamp((ui.autoFit ? fitScale : 1) * ui.zoom, 0.1, 2)
   const scaledWidth = exportSettings.width * appliedScale
   const scaledHeight = exportSettings.height * appliedScale
+  const visibleMessageCount = conversation.messages.filter((message) => !message.isHidden).length
+  const resolvedExportHeight =
+    exportSettings.captureMode === "full"
+      ? Math.max(conversationMetrics.fullExportHeight, exportSettings.height)
+      : exportSettings.height
+  const resolvedExportSettings = useMemo(
+    () => ({
+      ...exportSettings,
+      height: resolvedExportHeight,
+    }),
+    [exportSettings, resolvedExportHeight],
+  )
   const getPreviewOffset = () => {
     const scrollElement = previewScrollRef.current
     const exportElement = exportRef.current
@@ -170,6 +259,14 @@ export const MainLayout = () => {
       x: Number.isFinite(offsetX) ? offsetX : 0,
       y: Number.isFinite(offsetY) ? offsetY : 0,
     }
+  }
+  const scrollPreviewConversation = (position: "top" | "bottom") => {
+    const container = previewConversationRef.current
+    if (!container) return
+    container.scrollTo({
+      top: position === "top" ? 0 : container.scrollHeight,
+      behavior: "smooth",
+    })
   }
 
   const panelTabs = [
@@ -274,7 +371,13 @@ export const MainLayout = () => {
                 {ui.activePanel === "messages" ? <ConversationBuilder /> : null}
                 {ui.activePanel === "settings" ? <SettingsPanel /> : null}
                 {ui.activePanel === "export" ? (
-                  <ExportPanel targetRef={exportRef} getExportOffset={getPreviewOffset} />
+                  <ExportPanel
+                    targetRef={exportSettings.captureMode === "full" ? fullExportRef : exportRef}
+                    getExportOffset={
+                      exportSettings.captureMode === "full" ? undefined : getPreviewOffset
+                    }
+                    resolvedHeight={resolvedExportHeight}
+                  />
                 ) : null}
               </CardContent>
             </Card>
@@ -289,19 +392,6 @@ export const MainLayout = () => {
                     <p className="text-xs text-slate-500">Live view of your layout and message flow.</p>
                   </div>
                   <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 sm:w-auto sm:flex-wrap">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="hidden lg:inline-flex"
-                      onClick={() =>
-                        setUi({
-                          isSidebarOpen: !ui.isSidebarOpen,
-                          activeView: ui.isSidebarOpen ? "preview" : "editor",
-                        })
-                      }
-                    >
-                      {ui.isSidebarOpen ? "Focus preview" : "Show editor"}
-                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -337,8 +427,39 @@ export const MainLayout = () => {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   <SquareStack className="h-4 w-4" />
                   Zoom {Math.round(appliedScale * 100)}%
-                  {ui.autoFit ? " (auto-fit)" : ""} - Export size {exportSettings.width} x {exportSettings.height}
+                  {ui.autoFit ? " (auto-fit)" : ""} - Export size {exportSettings.width} x{" "}
+                  {resolvedExportHeight}
+                  {exportSettings.captureMode === "full" ? " - all messages" : ""}
                 </div>
+                {conversationMetrics.hasOverflow ? (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                      <div className="font-semibold">
+                        Long conversation detected: {visibleMessageCount} visible messages
+                      </div>
+                      <p className="text-amber-900/80">
+                        Scroll inside the phone preview to browse the thread, or jump directly to
+                        the start or latest message.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => scrollPreviewConversation("top")}
+                      >
+                        Jump to top
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => scrollPreviewConversation("bottom")}
+                      >
+                        Jump to latest
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </CardHeader>
               <CardContent>
                 <div
@@ -379,6 +500,9 @@ export const MainLayout = () => {
                             backgroundImageUrl={backgroundImageUrl}
                             backgroundImageOpacity={backgroundImageOpacity}
                             backgroundColor={backgroundColor}
+                            conversationMode="scroll"
+                            conversationContainerRef={previewConversationRef}
+                            conversationContentRef={previewConversationContentRef}
                           />
                         </div>
                       </div>
@@ -416,7 +540,7 @@ export const MainLayout = () => {
                   </Button>
                 </div>
                 <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       Quick download
                     </div>
@@ -437,6 +561,32 @@ export const MainLayout = () => {
                           {preset.label}
                         </Button>
                       ))}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Capture
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant={exportSettings.captureMode === "viewport" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setExportSettings({ captureMode: "viewport" })}
+                        >
+                          Current viewport
+                        </Button>
+                        <Button
+                          variant={exportSettings.captureMode === "full" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setExportSettings({ captureMode: "full" })}
+                        >
+                          All messages
+                        </Button>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {exportSettings.captureMode === "full"
+                          ? `Exports every visible message in a ${exportSettings.width} x ${resolvedExportHeight}px image.`
+                          : "Exports the device frame exactly as it appears in the preview."}
+                      </p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -486,8 +636,10 @@ export const MainLayout = () => {
                     <DialogHeader>
                       <DialogTitle>Export preview</DialogTitle>
                       <DialogDescription>
-                        {exportSettings.width} x {exportSettings.height} - {exportSettings.scale}x -{" "}
-                        {exportSettings.format.toUpperCase()}
+                        {resolvedExportSettings.width} x {resolvedExportSettings.height} -{" "}
+                        {resolvedExportSettings.scale}x -{" "}
+                        {resolvedExportSettings.format.toUpperCase()} -{" "}
+                        {exportSettings.captureMode === "full" ? "All messages" : "Current viewport"}
                       </DialogDescription>
                     </DialogHeader>
                     {isQuickPreviewing ? (
@@ -508,6 +660,27 @@ export const MainLayout = () => {
                     ) : null}
                   </DialogContent>
                 </Dialog>
+                {exportSettings.captureMode === "full" ? (
+                  <div aria-hidden="true" className="pointer-events-none fixed left-[-10000px] top-0">
+                    <div
+                      ref={fullExportRef}
+                      className="h-full w-full"
+                      style={{ width: exportSettings.width, height: resolvedExportHeight }}
+                    >
+                      <ChatLayout
+                        conversation={conversation}
+                        layout={layout}
+                        theme={theme}
+                        showChrome={ui.showChrome}
+                        activeParticipantId={activeParticipantId}
+                        backgroundImageUrl={backgroundImageUrl}
+                        backgroundImageOpacity={backgroundImageOpacity}
+                        backgroundColor={backgroundColor}
+                        conversationMode="expanded"
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </main>
@@ -561,9 +734,10 @@ export const MainLayout = () => {
                 <div className="space-y-2">
                   <div className="text-sm font-semibold text-slate-900">Third-party resources</div>
                   <p>
-                    The app may load fonts or default avatar images from third-party providers.
-                    Those providers may receive standard request data such as IP address and user
-                    agent. You can replace assets or block network requests if needed.
+                    The app may load fonts or user-provided remote images from third-party
+                    providers. Those providers may receive standard request data such as IP
+                    address and user agent. You can replace assets or block network requests if
+                    needed.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -647,9 +821,9 @@ export const MainLayout = () => {
                 <div className="space-y-2">
                   <div className="text-sm font-semibold text-slate-900">Third-party requests</div>
                   <p>
-                    Fonts and default avatar images may be loaded from third-party services. Those
-                    providers may receive standard request data such as IP address and user agent.
-                    You can block or replace these resources if needed.
+                    Fonts and user-provided remote images may be loaded from third-party services.
+                    Those providers may receive standard request data such as IP address and user
+                    agent. You can block or replace these resources if needed.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -678,34 +852,56 @@ export const MainLayout = () => {
           </Dialog>
         </div>
       </div>
-      <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-white/90 px-4 py-2 shadow-lg backdrop-blur lg:hidden">
-        <span
-          className={cn(
-            "text-xs font-semibold",
-            ui.activeView === "editor" ? "text-slate-900" : "text-slate-500",
-          )}
-        >
-          Edit
-        </span>
-        <Switch
-          checked={ui.activeView === "preview"}
-          onCheckedChange={(checked) =>
-            setUi({
-              activeView: checked ? "preview" : "editor",
-              isSidebarOpen: !checked,
-            })
-          }
-          className="h-8 w-14 bg-slate-200 data-[state=checked]:bg-slate-900"
-          thumbClassName="h-6 w-6 data-[state=checked]:translate-x-6"
-        />
-        <span
-          className={cn(
-            "text-xs font-semibold",
-            ui.activeView === "preview" ? "text-slate-900" : "text-slate-500",
-          )}
-        >
-          Live
-        </span>
+      <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 lg:hidden">
+        <div className="rounded-[1.4rem] border border-white/70 bg-white/90 p-1 shadow-lg backdrop-blur">
+          <div
+            role="tablist"
+            aria-label="Mobile view mode"
+            className="relative grid min-w-[188px] grid-cols-2 items-center"
+          >
+            <div
+              aria-hidden="true"
+              className={cn(
+                "absolute inset-y-0 left-0 w-1/2 rounded-[1.1rem] bg-slate-900 shadow-sm transition-transform duration-200 ease-out",
+                ui.activeView === "preview" && "translate-x-full",
+              )}
+            />
+            <button
+              type="button"
+              role="tab"
+              aria-selected={ui.activeView === "editor"}
+              className={cn(
+                "relative z-10 rounded-[1.1rem] px-5 py-2 text-sm font-semibold transition-colors",
+                ui.activeView === "editor" ? "text-white" : "text-slate-500",
+              )}
+              onClick={() =>
+                setUi({
+                  activeView: "editor",
+                  isSidebarOpen: true,
+                })
+              }
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={ui.activeView === "preview"}
+              className={cn(
+                "relative z-10 rounded-[1.1rem] px-5 py-2 text-sm font-semibold transition-colors",
+                ui.activeView === "preview" ? "text-white" : "text-slate-500",
+              )}
+              onClick={() =>
+                setUi({
+                  activeView: "preview",
+                  isSidebarOpen: false,
+                })
+              }
+            >
+              Live
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

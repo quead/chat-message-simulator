@@ -10,6 +10,9 @@ interface ConversationViewProps {
   participants: Participant[]
   layout: LayoutConfig
   selfId: string
+  mode?: "scroll" | "expanded"
+  containerRef?: React.Ref<HTMLDivElement>
+  contentRef?: React.Ref<HTMLDivElement>
 }
 
 export const ConversationView = ({
@@ -17,6 +20,9 @@ export const ConversationView = ({
   participants,
   layout,
   selfId,
+  mode = "scroll",
+  containerRef,
+  contentRef,
 }: ConversationViewProps) => {
   const visibleMessages = messages.filter((message) => !message.isHidden)
   const isWhatsApp = layout.id === "whatsapp"
@@ -56,66 +62,78 @@ export const ConversationView = ({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
-        "relative z-10 flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain hide-scrollbar",
-        isWhatsApp
-          ? "gap-1 px-3 py-4"
-          : isSnapchat
-            ? "gap-2 px-2.5 py-4"
-            : isMessenger
-              ? "gap-3 px-3 py-4"
-              : isInstagram
-                ? "gap-3 px-3 py-4"
-                : isTinder
-                  ? "gap-2.5 px-4 py-4"
-            : "gap-4 px-4 py-6",
+        "relative z-10 h-full min-h-0 overscroll-contain hide-scrollbar",
+        mode === "expanded" ? "overflow-visible" : "overflow-y-auto",
       )}
+      data-conversation-mode={mode}
+      data-conversation-scroll-root="true"
     >
-      {visibleMessages.length === 0 ? (
-        <div className="mx-auto max-w-sm rounded-2xl border border-dashed border-white/40 bg-white/10 px-6 py-8 text-center text-sm text-[var(--chat-muted)]">
-          {messages.length === 0
-            ? "Start your story by adding messages in the builder."
-            : "No visible messages. Unhide messages in the builder."}
-        </div>
-      ) : null}
-      {visibleMessages.map((message, index) => {
-        const sender = participants.find((participant) => participant.id === message.senderId)
-        const currentDate = isInstagram
-          ? formatInstagramDateSeparator(message.timestamp)
-          : formatDateSeparator(message.timestamp)
-        const currentDateKey = formatDateSeparator(message.timestamp)
-        const previousDateKey =
-          index > 0 ? formatDateSeparator(visibleMessages[index - 1].timestamp) : ""
-        const showDate = currentDateKey !== previousDateKey
-        const isOwn = message.senderId === selfId
-        const nextMessage = visibleMessages[index + 1]
-        const isLastFromSender =
-          !nextMessage || nextMessage.senderId !== message.senderId || nextMessage.type === "system"
-        const showAvatar = (isInstagram || isMessenger) && !isOwn && isLastFromSender
+      <div
+        ref={contentRef}
+        className={cn(
+          "flex min-h-full flex-col",
+          isWhatsApp
+            ? "gap-1 px-3 py-4"
+            : isSnapchat
+              ? "gap-2 px-2.5 py-4"
+              : isMessenger
+                ? "gap-3 px-3 py-4"
+                : isInstagram
+                  ? "gap-3 px-3 py-4"
+                  : isTinder
+                    ? "gap-2.5 px-4 py-4"
+              : "gap-4 px-4 py-6",
+        )}
+        data-conversation-content="true"
+      >
+        {visibleMessages.length === 0 ? (
+          <div className="mx-auto max-w-sm rounded-2xl border border-dashed border-white/40 bg-white/10 px-6 py-8 text-center text-sm text-[var(--chat-muted)]">
+            {messages.length === 0
+              ? "Start your story by adding messages in the builder."
+              : "No visible messages. Unhide messages in the builder."}
+          </div>
+        ) : null}
+        {visibleMessages.map((message, index) => {
+          const sender = participants.find((participant) => participant.id === message.senderId)
+          const currentDate = isInstagram
+            ? formatInstagramDateSeparator(message.timestamp)
+            : formatDateSeparator(message.timestamp)
+          const currentDateKey = formatDateSeparator(message.timestamp)
+          const previousDateKey =
+            index > 0 ? formatDateSeparator(visibleMessages[index - 1].timestamp) : ""
+          const showDate = currentDateKey !== previousDateKey
+          const isOwn = message.senderId === selfId
+          const nextMessage = visibleMessages[index + 1]
+          const isLastFromSender =
+            !nextMessage || nextMessage.senderId !== message.senderId || nextMessage.type === "system"
+          const showAvatar = (isInstagram || isMessenger) && !isOwn && isLastFromSender
 
-        if (message.type === "system") {
+          if (message.type === "system") {
+            return (
+              <div key={message.id} className="space-y-3">
+                {showDate ? <div className={dateBadgeClass}>{currentDate}</div> : null}
+                <div className={systemMessageClass}>{message.content}</div>
+              </div>
+            )
+          }
+
           return (
-            <div key={message.id} className="space-y-3">
+            <div key={message.id} className={isWhatsApp ? "space-y-2" : "space-y-3"}>
               {showDate ? <div className={dateBadgeClass}>{currentDate}</div> : null}
-              <div className={systemMessageClass}>{message.content}</div>
+              <MessageBubble
+                message={message}
+                sender={sender}
+                isOwn={isOwn}
+                layout={layout}
+                isGroup={isGroup}
+                showAvatar={showAvatar}
+              />
             </div>
           )
-        }
-
-        return (
-          <div key={message.id} className={isWhatsApp ? "space-y-2" : "space-y-3"}>
-            {showDate ? <div className={dateBadgeClass}>{currentDate}</div> : null}
-            <MessageBubble
-              message={message}
-              sender={sender}
-              isOwn={isOwn}
-              layout={layout}
-              isGroup={isGroup}
-              showAvatar={showAvatar}
-            />
-          </div>
-        )
-      })}
+        })}
+      </div>
     </div>
   )
 }

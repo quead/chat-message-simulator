@@ -5,10 +5,9 @@ import type { Conversation, Participant } from "../types/conversation"
 import type { Message, MessageStatus, MessageType } from "../types/message"
 import type { LayoutId, ThemeId } from "../types/layout"
 import { generateId } from "../utils/helpers"
-import avatarAvery from "@/assets/avatar-avery.svg"
-import avatarJordan from "@/assets/avatar-jordan.svg"
 
 export type ExportFormat = "png" | "jpeg"
+export type ExportCaptureMode = "viewport" | "full"
 
 export interface ExportSettings {
   presetId: string
@@ -17,6 +16,7 @@ export interface ExportSettings {
   scale: number
   format: ExportFormat
   quality: number
+  captureMode: ExportCaptureMode
 }
 
 export interface UiState {
@@ -96,71 +96,149 @@ const defaultParticipants: Participant[] = [
     name: "Avery",
     status: "online",
     color: "#22c55e",
-    avatarUrl: avatarAvery,
   },
   {
     id: "p2",
     name: "Jordan",
     status: "typing",
     color: "#0b84ff",
-    avatarUrl: avatarJordan,
   },
 ]
 
-const legacyAvatarMap: Record<string, string> = {
-  "https://i.pravatar.cc/100?img=12": avatarAvery,
-  "https://i.pravatar.cc/100?img=32": avatarJordan,
-}
+const removedDefaultAvatarUrls = new Set([
+  "https://i.pravatar.cc/100?img=12",
+  "https://i.pravatar.cc/100?img=32",
+])
+const removedDefaultAvatarPatterns = [/avatar-avery/i, /avatar-jordan/i]
 
 const normalizeParticipants = (participants: Participant[]) =>
   participants.map((participant) => {
-    if (!participant.avatarUrl) return participant
-    const replacement = legacyAvatarMap[participant.avatarUrl]
-    return replacement ? { ...participant, avatarUrl: replacement } : participant
+    const { avatarUrl } = participant
+    if (!avatarUrl) return participant
+    const isRemovedDefaultAvatar =
+      removedDefaultAvatarUrls.has(avatarUrl) ||
+      removedDefaultAvatarPatterns.some((pattern) => pattern.test(avatarUrl))
+    return isRemovedDefaultAvatar ? { ...participant, avatarUrl: undefined } : participant
   })
 
+const defaultMessageSeed: Array<{
+  senderId: string
+  content: string
+  type: MessageType
+  status: MessageStatus
+}> = [
+  {
+    senderId: "p1",
+    content: "Morning. I expanded the chat mockup layout so it feels closer to a real thread.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p2",
+    content: "Good. The short demo was too tidy and it hid the long-conversation problem.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p1",
+    content: "Exactly. Once the conversation got dense, people couldn’t tell how to review older messages.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p2",
+    content: "And exports only made sense if the important part happened to be inside the device viewport.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p1",
+    content: "So I’m splitting it into two actions: capture the current viewport, or export every visible message.",
+    type: "text",
+    status: "delivered",
+  },
+  {
+    senderId: "p2",
+    content: "That solves the screenshot problem. We still need a clearer way to move through the preview itself.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p1",
+    content: "I’m adding jump controls for top and latest, plus a status callout when the thread is taller than the phone.",
+    type: "text",
+    status: "delivered",
+  },
+  {
+    senderId: "p2",
+    content: "Perfect. It should feel obvious without adding weird chrome inside the fake app UI.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p1",
+    content: "Also removing the bundled SVG avatars. Default mocks will use initials until the user uploads real images.",
+    type: "text",
+    status: "delivered",
+  },
+  {
+    senderId: "p2",
+    content: "Better. Neutral defaults make the generator feel less pre-scripted.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p1",
+    content: "I left hidden messages out of the full export on purpose. If it’s hidden in the builder, it stays hidden everywhere.",
+    type: "text",
+    status: "delivered",
+  },
+  {
+    senderId: "p2",
+    content: "Good call. Otherwise export behavior gets surprising fast.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p2",
+    content: "System note: long threads now get dedicated preview guidance and an all-messages export mode.",
+    type: "system",
+    status: "sent",
+  },
+  {
+    senderId: "p1",
+    content: "I’m keeping the phone preview fixed-height so editing still feels like composing on a real device.",
+    type: "text",
+    status: "delivered",
+  },
+  {
+    senderId: "p2",
+    content: "That’s the right tradeoff. The editor stays readable, and the export can grow when it needs to.",
+    type: "text",
+    status: "read",
+  },
+  {
+    senderId: "p1",
+    content: "Ship it. This seed thread should make the new behavior obvious the moment the app loads.",
+    type: "text",
+    status: "sent",
+  },
+]
+
 const buildDefaultConversation = (): Conversation => {
-  const now = new Date().toISOString()
+  const updatedAt = new Date()
+  const firstTimestamp = updatedAt.getTime() - (defaultMessageSeed.length - 1) * 60_000
   return {
     id: "conv-1",
     participants: normalizeParticipants(defaultParticipants),
-    messages: [
-      {
-        id: "m1",
-        senderId: "p1",
-        content: "Morning! I mocked up the chat simulator layout.",
-        timestamp: now,
-        type: "text",
-        status: "read",
-      },
-      {
-        id: "m2",
-        senderId: "p2",
-        content: "Nice. Can we preview it in WhatsApp and iMessage styles?",
-        timestamp: now,
-        type: "text",
-        status: "read",
-      },
-      {
-        id: "m3",
-        senderId: "p1",
-        content: "Yep, I wired both themes and an export panel.",
-        timestamp: now,
-        type: "text",
-        status: "delivered",
-      },
-      {
-        id: "m4",
-        senderId: "p2",
-        content: "System: Export is locked to 2x by default.",
-        timestamp: now,
-        type: "system",
-        status: "sent",
-      },
-    ],
+    messages: defaultMessageSeed.map((message, index) => ({
+      id: `m${index + 1}`,
+      ...message,
+      timestamp: new Date(firstTimestamp + index * 60_000).toISOString(),
+    })),
     metadata: {
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(firstTimestamp).toISOString(),
+      updatedAt: updatedAt.toISOString(),
     },
   }
 }
@@ -172,6 +250,7 @@ const defaultExportSettings: ExportSettings = {
   scale: 2,
   format: "png",
   quality: 0.95,
+  captureMode: "viewport",
 }
 
 const defaultUiState: UiState = {
@@ -490,7 +569,7 @@ export const useConversationStore = create<ConversationStore>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       migrate: (state) => {
         if (!state) return state
         const typed = state as ConversationStore
@@ -499,6 +578,10 @@ export const useConversationStore = create<ConversationStore>()(
           conversation: {
             ...typed.conversation,
             participants: normalizeParticipants(typed.conversation.participants),
+          },
+          exportSettings: {
+            ...defaultExportSettings,
+            ...typed.exportSettings,
           },
         }
       },

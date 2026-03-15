@@ -71,7 +71,7 @@ export const Toolbar = () => {
       }
     })
     return () => unsubscribe()
-  }, [])
+  }, [setLastAutosaveAt])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
