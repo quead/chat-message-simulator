@@ -1,342 +1,184 @@
-import { useMemo, useState } from "react"
-import { Copy, Download, Image, Loader2, StretchHorizontal, StretchVertical } from "lucide-react"
+import { Download, Eye, Loader2 } from "lucide-react"
+import type { ChatPreview } from "@/hooks/useChatPreview"
+import { useConversationStore, type ExportCaptureMode } from "@/store/conversationStore"
+import { SizePresets } from "@/components/export/SizePresets"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { SizePresets } from "@/components/export/SizePresets"
-import { sizePresets } from "@/constants/exportPresets"
-import { exportNodeToImageSequence } from "@/utils/export"
-import { useConversationStore } from "@/store/conversationStore"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Segmented } from "@/components/ui/segmented"
+import { Slider } from "@/components/ui/slider"
+import { cn } from "@/utils/cn"
+import { captureModeLabels, describeExport } from "@/utils/export"
 
-interface ExportPanelProps {
-  targetRef: React.RefObject<HTMLDivElement | null> | React.RefObject<HTMLDivElement>
-  getExportOffset?: () => { x: number; y: number }
-  resolvedHeight?: number
-  screenScrollTops?: number[]
-}
+const MAX_EXPORT_SIDE = 4096
 
-const buildDownloadName = (format: "png" | "jpeg", index?: number) => {
-  const extension = format === "jpeg" ? "jpg" : "png"
-  if (index === undefined) {
-    return `chat-export.${extension}`
-  }
-  return `chat-export-${String(index + 1).padStart(2, "0")}.${extension}`
-}
-
-export const ExportPanel = ({
-  targetRef,
-  getExportOffset,
-  resolvedHeight,
-  screenScrollTops = [0],
-}: ExportPanelProps) => {
+export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
   const exportSettings = useConversationStore((state) => state.exportSettings)
   const setExportSettings = useConversationStore((state) => state.setExportSettings)
-  const [isExporting, setIsExporting] = useState(false)
-  const [isSummaryOpen, setIsSummaryOpen] = useState(true)
-  const [previewUrls, setPreviewUrls] = useState<string[]>([])
-  const [previewError, setPreviewError] = useState<string | null>(null)
-  const [isPreviewing, setIsPreviewing] = useState(false)
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const { exporter, resolvedHeight, screenCount } = preview
+  const fullHeight = Math.max(preview.metrics.fullExportHeight, exportSettings.height)
 
-  const effectiveHeight =
-    exportSettings.captureMode === "full"
-      ? Math.max(resolvedHeight ?? exportSettings.height, exportSettings.height)
-      : exportSettings.height
-  const effectiveExportSettings = {
-    ...exportSettings,
-    height: effectiveHeight,
+  const captureDescriptions: Record<ExportCaptureMode, string> = {
+    viewport: "Exactly what the phone preview shows right now.",
+    full: `One tall ${exportSettings.width} × ${fullHeight}px image with every visible message.`,
+    screens: `${screenCount} consecutive phone-sized screenshots, top to bottom.`,
   }
 
-  const preset = useMemo(
-    () => sizePresets.find((item) => item.id === exportSettings.presetId),
-    [exportSettings.presetId],
-  )
-  const screenCount = Math.max(screenScrollTops.length, 1)
-
-  const runExport = async (mode: "download" | "preview") => {
-    if (!targetRef.current) return
-    if (mode === "preview") {
-      setPreviewUrls([])
-      setPreviewError(null)
-      setIsPreviewing(true)
-      setIsPreviewOpen(true)
-    }
-    setIsExporting(true)
-    try {
-      const renderOptions =
-        exportSettings.captureMode === "screens"
-          ? screenScrollTops.map((top) => ({
-              scrollRootOverrides: [{ top }],
-            }))
-          : [
-              {
-                offset: exportSettings.captureMode === "full" ? undefined : getExportOffset?.(),
-              },
-            ]
-      const dataUrls = await exportNodeToImageSequence(
-        targetRef.current,
-        effectiveExportSettings,
-        renderOptions,
-      )
-      if (mode === "preview") {
-        setPreviewUrls(dataUrls)
-        return
-      }
-      dataUrls.forEach((dataUrl, index) => {
-        const link = document.createElement("a")
-        link.href = dataUrl
-        link.download =
-          exportSettings.captureMode === "screens"
-            ? buildDownloadName(exportSettings.format, index)
-            : buildDownloadName(exportSettings.format)
-        link.click()
-      })
-    } catch (error) {
-      console.error("Export failed", error)
-      if (mode === "preview") {
-        const message = error instanceof Error ? error.message : "Unknown error"
-        setPreviewError(message)
-      }
-    } finally {
-      setIsExporting(false)
-      if (mode === "preview") {
-        setIsPreviewing(false)
-      }
-    }
+  const setDimension = (key: "width" | "height", value: string) => {
+    const size = Math.round(Number(value))
+    if (size > 0) setExportSettings({ presetId: "custom", [key]: Math.min(size, MAX_EXPORT_SIDE) })
   }
-
-  const captureSummary =
-    exportSettings.captureMode === "full"
-      ? "All messages"
-      : exportSettings.captureMode === "screens"
-        ? `${screenCount} subsequent screens`
-        : "Current viewport"
-  const settingsSummary = `${exportSettings.width} x ${effectiveHeight} - ${exportSettings.scale}x - ${exportSettings.format.toUpperCase()} - ${captureSummary}`
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Export</h3>
-          <p className="text-xs text-slate-500">Set size, format, and quality before exporting.</p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => setIsSummaryOpen(!isSummaryOpen)}>
-          {isSummaryOpen ? "Collapse" : "Expand"}
-        </Button>
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-base font-semibold text-slate-900">Export</h2>
+        <p className="text-xs text-slate-500">Choose a size and capture mode, then download.</p>
       </div>
 
-      {isSummaryOpen ? (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Image className="h-4 w-4 text-slate-500" />
-              <span>{settingsSummary}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigator.clipboard.writeText(settingsSummary)}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
+      <div className="rounded-xl bg-slate-900 p-3.5 text-white shadow-sm">
+        <div className="text-[11px] font-medium tracking-wide text-white/50 uppercase">Output</div>
+        <div className="mt-0.5 text-sm font-medium tabular-nums">
+          {describeExport(exportSettings, resolvedHeight, screenCount)}
         </div>
-      ) : null}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-white/15 bg-white/10 text-white hover:bg-white/20"
+            disabled={exporter.isExporting}
+            onClick={() => exporter.run("preview")}
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </Button>
+          <Button
+            size="sm"
+            className="bg-white text-slate-900 hover:bg-slate-100"
+            disabled={exporter.isExporting}
+            onClick={() => exporter.run("download")}
+          >
+            {exporter.isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Download
+          </Button>
+        </div>
+      </div>
 
-      <div className="space-y-3">
-        <Label>Device presets</Label>
+      <section className="space-y-2.5">
+        <h3 className="text-sm font-semibold text-slate-900">Capture</h3>
+        <div className="space-y-1.5" role="radiogroup" aria-label="Capture mode">
+          {(Object.keys(captureModeLabels) as ExportCaptureMode[]).map((mode) => {
+            const isActive = exportSettings.captureMode === mode
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                onClick={() => setExportSettings({ captureMode: mode })}
+                className={cn(
+                  "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none",
+                  isActive ? "border-indigo-500 bg-indigo-50/50" : "border-slate-200 hover:border-slate-300",
+                )}
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                    isActive ? "border-indigo-600" : "border-slate-300",
+                  )}
+                >
+                  {isActive ? <span className="h-2 w-2 rounded-full bg-indigo-600" /> : null}
+                </span>
+                <span>
+                  <span className="block text-sm font-medium text-slate-900">
+                    {captureModeLabels[mode]}
+                  </span>
+                  <span className="block text-xs text-slate-500">{captureDescriptions[mode]}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-2.5">
+        <h3 className="text-sm font-semibold text-slate-900">Device size</h3>
         <SizePresets
           selectedId={exportSettings.presetId}
-          onSelect={(presetItem) =>
-            setExportSettings({
-              presetId: presetItem.id,
-              width: presetItem.width,
-              height: presetItem.height,
-            })
+          onSelect={(preset) =>
+            setExportSettings({ presetId: preset.id, width: preset.width, height: preset.height })
           }
         />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label>Custom width</Label>
-          <div className="relative">
-            <StretchHorizontal className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              type="number"
-              min={240}
-              value={exportSettings.width}
-              onChange={(event) =>
-                setExportSettings({
-                  presetId: "custom",
-                  width: Number(event.target.value),
-                })
-              }
-              className="pl-9"
-            />
-          </div>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={120}
+            max={MAX_EXPORT_SIDE}
+            value={exportSettings.width}
+            onChange={(event) => setDimension("width", event.target.value)}
+            className="h-9 tabular-nums"
+            aria-label="Width in pixels"
+          />
+          <span className="text-slate-400">×</span>
+          <Input
+            type="number"
+            min={120}
+            max={MAX_EXPORT_SIDE}
+            value={exportSettings.height}
+            onChange={(event) => setDimension("height", event.target.value)}
+            className="h-9 tabular-nums"
+            aria-label="Height in pixels"
+          />
+          <span className="text-xs text-slate-400">px</span>
         </div>
-        <div className="space-y-2">
-          <Label>Custom height</Label>
-          <div className="relative">
-            <StretchVertical className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              type="number"
-              min={240}
-              value={exportSettings.height}
-              onChange={(event) =>
-                setExportSettings({
-                  presetId: "custom",
-                  height: Number(event.target.value),
-                })
-              }
-              className="pl-9"
-            />
-          </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-slate-900">Image</h3>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-slate-600">
+            Resolution
+            <span className="block text-xs text-slate-400 tabular-nums">
+              {exportSettings.width * exportSettings.scale} × {resolvedHeight * exportSettings.scale}px
+            </span>
+          </span>
+          <Segmented
+            label="Resolution"
+            size="sm"
+            value={exportSettings.scale}
+            onChange={(scale) => setExportSettings({ scale })}
+            options={[1, 2, 3].map((scale) => ({ value: scale, label: `${scale}x` }))}
+          />
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Quality</Label>
-        <div className="flex flex-wrap gap-2">
-          {[1, 2, 3].map((scale) => (
-            <Button
-              key={scale}
-              variant={exportSettings.scale === scale ? "default" : "outline"}
-              onClick={() => setExportSettings({ scale })}
-            >
-              {scale}x
-            </Button>
-          ))}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm text-slate-600">Format</span>
+          <Segmented
+            label="Format"
+            size="sm"
+            value={exportSettings.format}
+            onChange={(format) => setExportSettings({ format })}
+            options={[
+              { value: "png", label: "PNG" },
+              { value: "jpeg", label: "JPEG" },
+            ]}
+          />
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Format</Label>
-        <div className="flex gap-2">
-          <Button
-            variant={exportSettings.format === "png" ? "default" : "outline"}
-            onClick={() => setExportSettings({ format: "png" })}
-          >
-            PNG
-          </Button>
-          <Button
-            variant={exportSettings.format === "jpeg" ? "default" : "outline"}
-            onClick={() => setExportSettings({ format: "jpeg" })}
-          >
-            JPEG
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label>Capture</Label>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={exportSettings.captureMode === "viewport" ? "default" : "outline"}
-            onClick={() => setExportSettings({ captureMode: "viewport" })}
-          >
-            Current viewport
-          </Button>
-          <Button
-            variant={exportSettings.captureMode === "full" ? "default" : "outline"}
-            onClick={() => setExportSettings({ captureMode: "full" })}
-          >
-            All messages
-          </Button>
-          <Button
-            variant={exportSettings.captureMode === "screens" ? "default" : "outline"}
-            onClick={() => setExportSettings({ captureMode: "screens" })}
-          >
-            Subsequent screens
-          </Button>
-        </div>
-        <p className="text-xs text-slate-500">
-          {exportSettings.captureMode === "full"
-            ? `Height expands automatically to ${effectiveHeight}px so every visible message is included.`
-            : exportSettings.captureMode === "screens"
-              ? `Automatically splits the thread into ${screenCount} device-sized screenshots based on the current export height.`
-              : "Export exactly what is visible in the device frame right now."}
-        </p>
-      </div>
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button variant="outline" onClick={() => runExport("preview")} disabled={isExporting}>
-          {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Image className="h-4 w-4" />}
-          Preview
-        </Button>
-        <Button onClick={() => runExport("download")} disabled={isExporting}>
-          {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Download
-        </Button>
-      </div>
-
-      <Dialog
-        open={isPreviewOpen}
-        onOpenChange={(open) => {
-          setIsPreviewOpen(open)
-          if (!open) {
-            setPreviewUrls([])
-            setPreviewError(null)
-            setIsPreviewing(false)
-          }
-        }}
-      >
-        <DialogContent className="w-[94vw] max-w-5xl max-h-[88vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Export preview</DialogTitle>
-            <DialogDescription>{settingsSummary}</DialogDescription>
-          </DialogHeader>
-          {isPreviewing ? (
-            <div className="text-sm text-slate-500">Rendering preview...</div>
-          ) : null}
-          {previewError ? (
-            <div className="text-sm text-red-600">Export failed: {previewError}</div>
-          ) : null}
-          {previewUrls.length ? (
-            <div className="space-y-3">
-              {previewUrls.map((previewUrl, index) => (
-                <div key={previewUrl} className="space-y-2">
-                  {previewUrls.length > 1 ? (
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Screen {index + 1}
-                    </div>
-                  ) : null}
-                  <img
-                    src={previewUrl}
-                    alt={
-                      previewUrls.length > 1
-                        ? `Export preview screen ${index + 1}`
-                        : "Export preview"
-                    }
-                    className="max-h-[70vh] w-full rounded-xl border border-slate-200 bg-slate-50 object-contain"
-                  />
-                </div>
-              ))}
-              <div className="text-xs text-slate-500">
-                {previewUrls.length > 1
-                  ? "Download saves one image per screen in order."
-                  : "Right click the image to save."}
-              </div>
+        {exportSettings.format === "jpeg" ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>JPEG quality</span>
+              <span className="tabular-nums">{Math.round(exportSettings.quality * 100)}%</span>
             </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      {preset ? (
-        <p className="text-xs text-slate-500">
-          Preset: {preset.label} - {preset.width} x {preset.height}
-        </p>
-      ) : (
-        <p className="text-xs text-slate-500">Custom size active.</p>
-      )}
+            <Slider
+              min={50}
+              max={100}
+              step={1}
+              value={[Math.round(exportSettings.quality * 100)]}
+              onValueChange={(value) => setExportSettings({ quality: value[0] / 100 })}
+              aria-label="JPEG quality"
+            />
+          </div>
+        ) : null}
+      </section>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { toJpeg, toPng } from "html-to-image"
-import type { ExportSettings } from "../store/conversationStore"
+import type { ExportFormat, ExportSettings } from "../store/conversationStore"
+import { readFileAsDataUrl } from "./helpers"
 
 const IMAGE_LOAD_TIMEOUT_MS = 3000
 const EXPORT_TIMEOUT_MS = 20000
@@ -17,6 +18,56 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, message: string)
         reject(error)
       })
   })
+
+// Keep in sync with the Roboto @import in index.css: it is the only webfont the preview renders with.
+const PREVIEW_FONT_CSS_URL =
+  "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+
+const inlineFontCss = async () => {
+  const response = await fetch(PREVIEW_FONT_CSS_URL)
+  if (!response.ok) throw new Error(`Font CSS request failed (${response.status})`)
+  const css = await response.text()
+  const urls = [...new Set(Array.from(css.matchAll(/url\((['"]?)(.+?)\1\)/g), (match) => match[2]))]
+  const dataUrls = await Promise.all(
+    urls.map(async (url) => {
+      const fontResponse = await fetch(url)
+      if (!fontResponse.ok) throw new Error(`Font request failed (${fontResponse.status})`)
+      return readFileAsDataUrl(await fontResponse.blob())
+    }),
+  )
+  return urls.reduce((result, url, index) => result.replaceAll(url, dataUrls[index]), css)
+}
+
+let fontEmbedCssPromise: Promise<string> | null = null
+
+// html-to-image's own font discovery calls rule.style.fontFamily.trim(), which crashes in Firefox
+// builds where CSSFontFaceDescriptors has no fontFamily (issue #5). Embedding fonts ourselves avoids
+// that path and fetches the fonts once instead of once per exported screen.
+const getFontEmbedCss = () => {
+  fontEmbedCssPromise ??= inlineFontCss().catch((error) => {
+    console.warn("Could not embed preview fonts, export falls back to system fonts", error)
+    fontEmbedCssPromise = null
+    return ""
+  })
+  return fontEmbedCssPromise
+}
+
+export const buildDownloadName = (format: ExportFormat, index?: number) => {
+  const extension = format === "jpeg" ? "jpg" : "png"
+  if (index === undefined) {
+    return `chat-export.${extension}`
+  }
+  return `chat-export-${String(index + 1).padStart(2, "0")}.${extension}`
+}
+
+export const downloadDataUrls = (dataUrls: string[], format: ExportFormat) => {
+  dataUrls.forEach((dataUrl, index) => {
+    const link = document.createElement("a")
+    link.href = dataUrl
+    link.download = buildDownloadName(format, dataUrls.length > 1 ? index : undefined)
+    link.click()
+  })
+}
 
 interface ExportRenderOptions {
   offset?: { x: number; y: number }
@@ -122,9 +173,10 @@ export const exportNodeToImage = async (
     ? `translate(${-options.offset.x}px, ${-options.offset.y}px) scale(1)`
     : "scale(1)"
   try {
-    await waitForImages(clone)
+    const [fontEmbedCSS] = await Promise.all([getFontEmbedCss(), waitForImages(clone)])
 
     const commonOptions = {
+      fontEmbedCSS,
       width: settings.width,
       height: settings.height,
       pixelRatio: settings.scale,
@@ -166,3 +218,17 @@ export const exportNodeToImageSequence = async (
   }
   return dataUrls
 }
+
+export const captureModeLabels: Record<ExportSettings["captureMode"], string> = {
+  viewport: "Current view",
+  full: "Full conversation",
+  screens: "Screen by screen",
+}
+
+export const describeExport = (settings: ExportSettings, height: number, screenCount: number) =>
+  [
+    `${settings.width} × ${height}`,
+    `${settings.scale}x`,
+    settings.format.toUpperCase(),
+    settings.captureMode === "screens" ? `${screenCount} screens` : captureModeLabels[settings.captureMode],
+  ].join(" · ")

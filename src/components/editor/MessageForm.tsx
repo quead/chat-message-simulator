@@ -1,142 +1,73 @@
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
+import { ImagePlus, Loader2 } from "lucide-react"
 import type { Message } from "@/types/message"
 import type { Participant } from "@/types/conversation"
+import { MESSAGE_IMAGE_MAX_SIZE } from "@/store/fileActions"
+import { useFileDrop } from "@/hooks/useFileDrop"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/utils/cn"
-import { readFileAsDataUrl } from "@/utils/helpers"
-import { Clipboard, ImagePlus, X } from "lucide-react"
+import { readImageFile } from "@/utils/helpers"
 
 interface MessageFormProps {
   participants: Participant[]
-  initial?: Message | null
-  defaultSenderId?: string
-  compact?: boolean
-  resetOnSubmit?: boolean
-  submitLabel?: string
-  advancedOpen?: boolean
-  onToggleAdvanced?: () => void
-  onSubmit: (payload: {
-    senderId: string
-    content: string
-    imageUrl?: string
-    timestamp: string
-    type: Message["type"]
-    status: Message["status"]
-  }) => void
-  onCancel?: () => void
-}
-
-const resolveSenderId = (preferredId: string | undefined, participants: Participant[]) => {
-  if (preferredId && participants.some((participant) => participant.id === preferredId)) {
-    return preferredId
-  }
-  return participants[0]?.id ?? ""
+  initial: Message
+  onSubmit: (payload: Pick<Message, "senderId" | "content" | "imageUrl" | "timestamp" | "type" | "status">) => void
+  onCancel: () => void
 }
 
 const toInputValue = (iso: string) => {
   const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
   const offset = date.getTimezoneOffset() * 60000
   return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
-const fromInputValue = (value: string) => new Date(value).toISOString()
-
-export const MessageForm = ({
-  participants,
-  initial,
-  defaultSenderId,
-  compact,
-  resetOnSubmit,
-  submitLabel,
-  advancedOpen,
-  onToggleAdvanced,
-  onSubmit,
-  onCancel,
-}: MessageFormProps) => {
-  const [content, setContent] = useState(initial?.content ?? "")
-  const [senderId, setSenderId] = useState(
-    initial?.senderId ?? resolveSenderId(defaultSenderId, participants),
-  )
-  const [timestamp, setTimestamp] = useState(
-    initial?.timestamp ? toInputValue(initial.timestamp) : toInputValue(new Date().toISOString()),
-  )
-  const [type, setType] = useState<Message["type"]>(initial?.type ?? "text")
-  const [status, setStatus] = useState<Message["status"]>(initial?.status ?? "sent")
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "")
+export const MessageForm = ({ participants, initial, onSubmit, onCancel }: MessageFormProps) => {
+  const [content, setContent] = useState(initial.content)
+  const [senderId, setSenderId] = useState(initial.senderId)
+  const [timestamp, setTimestamp] = useState(toInputValue(initial.timestamp))
+  const [type, setType] = useState<Message["type"]>(initial.type)
+  const [status, setStatus] = useState<Message["status"]>(initial.status)
+  const [imageUrl, setImageUrl] = useState(initial.imageUrl ?? "")
   const [imageError, setImageError] = useState<string | null>(null)
-  const showAdvanced = advancedOpen ?? true
-  const showAdvancedToggle = typeof advancedOpen === "boolean" && typeof onToggleAdvanced === "function"
-  const previousDefaultRef = useRef(defaultSenderId)
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [isReadingImage, setIsReadingImage] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  useEffect(() => {
-    if (initial) return
-    const previousDefault = previousDefaultRef.current
-    previousDefaultRef.current = defaultSenderId
-    const nextDefault = resolveSenderId(defaultSenderId, participants)
-    setSenderId((current) => {
-      const isValid = participants.some((participant) => participant.id === current)
-      if (!current || !isValid || current === previousDefault) {
-        return nextDefault
-      }
-      return current
-    })
-  }, [defaultSenderId, initial, participants])
-
-  const insertAtCursor = (text: string) => {
-    const element = textareaRef.current
-    if (!element) {
-      setContent((current) => (current ? `${current}\n${text}` : text))
-      return
-    }
-    const start = element.selectionStart ?? element.value.length
-    const end = element.selectionEnd ?? element.value.length
-    setContent((current) => current.slice(0, start) + text + current.slice(end))
-    requestAnimationFrame(() => {
-      element.focus()
-      const nextPos = start + text.length
-      element.setSelectionRange(nextPos, nextPos)
-    })
-  }
-
-  const handlePaste = async () => {
+  const handleImage = async (file: File) => {
+    setIsReadingImage(true)
     try {
-      if (navigator.clipboard?.readText) {
-        const text = await navigator.clipboard.readText()
-        if (text) {
-          insertAtCursor(text)
-          return
-        }
-      }
-    } catch (error) {
-      console.error("Paste failed", error)
-    }
-    const fallback = window.prompt("Paste message")
-    if (fallback) insertAtCursor(fallback)
-  }
-
-  const handleImageUpload = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setImageError("Only image files are allowed.")
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setImageError("Image must be smaller than 5MB.")
-      return
-    }
-    try {
-      const dataUrl = await readFileAsDataUrl(file)
-      setImageUrl(dataUrl)
+      setImageUrl(await readImageFile(file, MESSAGE_IMAGE_MAX_SIZE))
       setImageError(null)
     } catch (error) {
-      console.error("Failed to read image file", error)
-      setImageError("Could not read the selected image.")
+      setImageError(error instanceof Error ? error.message : "Could not read the image.")
+    } finally {
+      setIsReadingImage(false)
     }
+  }
+
+  const { isOver, dropProps } = useFileDrop((files) => {
+    const image = files.find((file) => file.type.startsWith("image/"))
+    if (image) void handleImage(image)
+  })
+
+  const submit = () => {
+    if (type === "image" && !imageUrl) {
+      setImageError("Upload an image for this message.")
+      return
+    }
+    const parsedTime = new Date(timestamp)
+    onSubmit({
+      senderId,
+      content,
+      imageUrl: type === "image" ? imageUrl : undefined,
+      timestamp: Number.isNaN(parsedTime.getTime()) ? initial.timestamp : parsedTime.toISOString(),
+      type,
+      status,
+    })
   }
 
   return (
@@ -144,196 +75,138 @@ export const MessageForm = ({
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault()
-        if (type === "image" && !imageUrl) {
-          setImageError("Please upload an image for this message.")
-          return
-        }
-        onSubmit({
-          senderId,
-          content,
-          imageUrl: type === "image" ? imageUrl : undefined,
-          timestamp: fromInputValue(timestamp),
-          type,
-          status,
-        })
-        if (resetOnSubmit && !initial) {
-          setContent("")
-          setTimestamp(toInputValue(new Date().toISOString()))
-          setType("text")
-          setStatus("sent")
-          setSenderId(resolveSenderId(defaultSenderId, participants))
-          setImageUrl("")
-          setImageError(null)
+        submit()
+      }}
+      onKeyDown={(event) => {
+        // Keys from portalled Select menus bubble through React; only handle ones typed in the form.
+        if (!event.currentTarget.contains(event.target as Node)) return
+        if (event.key === "Escape") {
+          event.stopPropagation()
+          onCancel()
+        } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault()
+          submit()
         }
       }}
     >
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label>{type === "image" ? "Caption" : "Message"}</Label>
-          <div className="flex items-center gap-2">
-            <Button type="button" size="sm" variant="ghost" onClick={handlePaste}>
-              <Clipboard className="h-3.5 w-3.5" />
-              Paste
-            </Button>
-            {content ? (
-              <Button type="button" size="sm" variant="ghost" onClick={() => setContent("")}>
-                <X className="h-3.5 w-3.5" />
-                Clear
-              </Button>
-            ) : null}
-          </div>
-        </div>
-        <Textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          placeholder={type === "image" ? "Add a caption (optional)..." : "Write the message..."}
-          className={cn(compact && "min-h-[72px]")}
-        />
-      </div>
+      <Textarea
+        autoFocus
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
+        placeholder={type === "image" ? "Caption (optional)" : "Message text"}
+        className="min-h-[72px]"
+        aria-label={type === "image" ? "Caption" : "Message text"}
+      />
 
       {type === "image" ? (
-        <div className="space-y-2">
-          <Label>Image upload</Label>
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
-            <div className="h-20 w-28 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-              {imageUrl ? (
-                <img src={imageUrl} alt="Uploaded preview" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-slate-400">
-                  No image
-                </div>
-              )}
-            </div>
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                className="gap-2"
-              >
-                <ImagePlus className="h-4 w-4" />
-                Upload image
-              </Button>
-              {imageUrl ? (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setImageUrl("")}>
-                  Remove
-                </Button>
-              ) : null}
-              <span className="text-xs text-slate-500">JPG, PNG, or WEBP up to 5MB.</span>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={async (event) => {
-                const file = event.target.files?.[0]
-                if (!file) return
-                await handleImageUpload(file)
-                event.target.value = ""
-              }}
-            />
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-lg border border-dashed border-slate-200 p-2 transition",
+            isOver && "border-indigo-400 bg-indigo-50/60",
+          )}
+          {...dropProps}
+        >
+          <div className="flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-100">
+            {isReadingImage ? (
+              <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+            ) : imageUrl ? (
+              <img src={imageUrl} alt="Message attachment" className="h-full w-full object-cover" />
+            ) : (
+              <ImagePlus className="h-5 w-5 text-slate-300" />
+            )}
           </div>
-          {imageError ? (
-            <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-              {imageError}
-            </div>
-          ) : null}
+          <div className="space-y-1">
+            <Button type="button" variant="outline" size="xs" onClick={() => fileInputRef.current?.click()}>
+              {imageUrl ? "Replace image" : "Upload image"}
+            </Button>
+            <p className="text-[11px] text-slate-400">Or drop / paste an image here.</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ""
+              if (file) void handleImage(file)
+            }}
+          />
         </div>
       ) : null}
-
-      {showAdvanced ? (
-        <>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Sender</Label>
-              <Select value={senderId} onValueChange={setSenderId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sender" />
-                </SelectTrigger>
-                <SelectContent>
-                  {participants.map((participant) => (
-                    <SelectItem key={participant.id} value={participant.id}>
-                      {participant.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Timestamp</Label>
-              <Input
-                type="datetime-local"
-                value={timestamp}
-                onChange={(event) => setTimestamp(event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select
-                value={type}
-                onValueChange={(value) => {
-                  const nextType = value as Message["type"]
-                  setType(nextType)
-                  if (nextType !== "image") {
-                    setImageError(null)
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Text</SelectItem>
-                  <SelectItem value="system">System</SelectItem>
-                  <SelectItem value="image">Image</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={(value) => setStatus(value as Message["status"])}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="delivered">Delivered</SelectItem>
-                  <SelectItem value="read">Read</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </>
+      {imageError ? (
+        <div className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">{imageError}</div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="submit"
-          disabled={type === "image" && !imageUrl}
-          onClick={() => {
-            if (type === "image" && !imageUrl) {
-              setImageError("Please upload an image for this message.")
-            }
-          }}
-        >
-          {submitLabel ?? (initial ? "Save changes" : "Add message")}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-500">From</Label>
+          <Select value={senderId} onValueChange={setSenderId}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="Sender" />
+            </SelectTrigger>
+            <SelectContent>
+              {participants.map((participant) => (
+                <SelectItem key={participant.id} value={participant.id}>
+                  {participant.name || "Unnamed"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-500">Type</Label>
+          <Select
+            value={type}
+            onValueChange={(value) => {
+              setType(value as Message["type"])
+              setImageError(null)
+            }}
+          >
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="text">Message</SelectItem>
+              <SelectItem value="image">Image</SelectItem>
+              <SelectItem value="system">System notice</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-500">Status</Label>
+          <Select value={status} onValueChange={(value) => setStatus(value as Message["status"])}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sent">Sent</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
+              <SelectItem value="read">Read</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-slate-500">Time</Label>
+          <Input
+            type="datetime-local"
+            value={timestamp}
+            onChange={(event) => setTimestamp(event.target.value)}
+            className="h-9 px-2 text-xs"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button type="submit" size="sm" disabled={isReadingImage}>
+          Save
         </Button>
-        {initial ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
-        ) : null}
-        {showAdvancedToggle ? (
-          <Button type="button" variant="ghost" onClick={onToggleAdvanced}>
-            {advancedOpen ? "Hide advanced" : "Advanced"}
-          </Button>
-        ) : null}
+        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <span className="ml-auto hidden text-[11px] text-slate-400 pointer-fine:inline">
+          Ctrl+Enter to save · Esc to cancel
+        </span>
       </div>
     </form>
   )

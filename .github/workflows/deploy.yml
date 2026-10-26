@@ -1,0 +1,45 @@
+# Builds the app and publishes dist/ to https://github.com/quead/quead.github.io (served at https://quead.github.io/).
+# Pushing to the external repo uses the PAGES_DEPLOY_KEY secret: the private half of a write-enabled
+# deploy key registered on quead/quead.github.io.
+name: Deploy to quead.github.io
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn build
+
+      - name: Publish to quead/quead.github.io
+        if: github.event_name != 'pull_request'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          deploy_key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          external_repository: quead/quead.github.io
+          publish_branch: master
+          publish_dir: ./dist
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          full_commit_message: "update to latest version (${{ github.repository }}@${{ github.sha }})"

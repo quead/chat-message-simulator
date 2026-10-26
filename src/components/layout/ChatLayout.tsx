@@ -3,7 +3,7 @@ import type { LayoutConfig, LayoutId, LayoutTheme } from "@/types/layout"
 import { ChatHeader } from "@/components/chat/ChatHeader"
 import { ConversationView } from "@/components/chat/ConversationView"
 import { MessageInput } from "@/components/chat/MessageInput"
-import { getConversationTitle } from "@/utils/helpers"
+import { getConversationTitle, getSelfParticipantId } from "@/utils/helpers"
 
 interface ChatLayoutProps {
   conversation: Conversation
@@ -40,18 +40,6 @@ const directStatusLabel = (status?: string, layoutId?: LayoutId) => {
   if (status === "online") return "online"
   if (status === "empty") return ""
   return "offline"
-}
-
-const getSelfParticipantId = (
-  participants: Conversation["participants"],
-  activeParticipantId: string,
-) => {
-  if (participants.length === 2) {
-    // In direct chats, treat the active participant as "you".
-    const active = participants.find((participant) => participant.id === activeParticipantId)
-    return active?.id ?? participants[0]?.id ?? ""
-  }
-  return participants[0]?.id ?? ""
 }
 
 export const ChatLayout = ({

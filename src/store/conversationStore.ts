@@ -1,10 +1,11 @@
 import { create } from "zustand"
-import { createJSONStorage, persist } from "zustand/middleware"
-import { defaultLayoutId } from "../constants/layouts"
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware"
+import { defaultLayoutId, getLayoutConfig } from "../constants/layouts"
 import type { Conversation, Participant } from "../types/conversation"
 import type { Message, MessageStatus, MessageType } from "../types/message"
 import type { LayoutId, ThemeId } from "../types/layout"
 import { generateId } from "../utils/helpers"
+import { toast } from "./toastStore"
 
 export type ExportFormat = "png" | "jpeg"
 export type ExportCaptureMode = "viewport" | "full" | "screens"
@@ -23,7 +24,6 @@ export interface UiState {
   activeView: "editor" | "preview"
   showChrome: boolean
   zoom: number
-  isSidebarOpen: boolean
   activePanel: "messages" | "participants" | "settings" | "export"
   autoFit: boolean
 }
@@ -55,7 +55,6 @@ interface ConversationStore {
   exportSettings: ExportSettings
   ui: UiState
   history: HistoryState
-  lastAutosaveAt: number | null
   setLayout: (layoutId: LayoutId) => void
   setTheme: (themeId: ThemeId) => void
   setActiveParticipant: (participantId: string) => void
@@ -63,7 +62,6 @@ interface ConversationStore {
   setBackgroundImageOpacity: (opacity: number) => void
   clearBackgroundImage: () => void
   setBackgroundColor: (color: string) => void
-  setLastAutosaveAt: (timestamp: number | null) => void
   addParticipant: (participant: Omit<Participant, "id">) => void
   updateParticipant: (participantId: string, updates: Partial<Participant>) => void
   removeParticipant: (participantId: string) => void
@@ -86,8 +84,6 @@ interface ConversationStore {
   loadConversation: (conversation: Conversation) => void
   undo: () => void
   redo: () => void
-  saveSnapshot: () => void
-  clearSnapshot: () => void
 }
 
 const defaultParticipants: Participant[] = [
@@ -257,13 +253,13 @@ const defaultUiState: UiState = {
   activeView: "editor",
   showChrome: true,
   zoom: 1,
-  isSidebarOpen: true,
   activePanel: "messages",
   autoFit: true,
 }
 
 const STORAGE_KEY = "chat-sim-storage"
-const HISTORY_LIMIT = 3
+const HISTORY_LIMIT = 50
+const HISTORY_COALESCE_MS = 1000
 
 const buildSnapshot = (state: ConversationStore): Snapshot => ({
   conversation: state.conversation,
@@ -276,17 +272,63 @@ const buildSnapshot = (state: ConversationStore): Snapshot => ({
   exportSettings: state.exportSettings,
 })
 
-const pushHistory = (state: ConversationStore): HistoryState => {
-  const past = [...state.history.past, buildSnapshot(state)]
+let lastHistoryKey: string | null = null
+let lastHistoryAt = 0
+
+// Rapid edits sharing a coalesceKey (typing, dragging a slider) collapse into one undo step.
+const pushHistory = (state: ConversationStore, coalesceKey?: string): HistoryState => {
+  const now = Date.now()
+  const coalesce =
+    coalesceKey !== undefined &&
+    coalesceKey === lastHistoryKey &&
+    now - lastHistoryAt < HISTORY_COALESCE_MS
+  lastHistoryKey = coalesceKey ?? null
+  lastHistoryAt = now
+  if (coalesce) return { past: state.history.past, future: [] }
   return {
-    past: past.slice(-HISTORY_LIMIT),
+    past: [...state.history.past, buildSnapshot(state)].slice(-HISTORY_LIMIT),
     future: [],
   }
 }
 
+const touchConversation = (
+  conversation: Conversation,
+  updates: Partial<Conversation>,
+): Conversation => ({
+  ...conversation,
+  ...updates,
+  metadata: { ...conversation.metadata, updatedAt: new Date().toISOString() },
+})
+
+const resolveGroupName = (participants: Participant[], groupName: string | undefined) =>
+  participants.length > 2 ? (groupName ?? "Group Chat") : undefined
+
+export const useSaveStatus = create<{ savedAt: number | null; failed: boolean }>()(() => ({
+  savedAt: null,
+  failed: false,
+}))
+
+// Data-URL images can exceed the localStorage quota; surface that instead of throwing inside set().
+const autosaveStorage: StateStorage = {
+  getItem: (name) => localStorage.getItem(name),
+  removeItem: (name) => localStorage.removeItem(name),
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value)
+      useSaveStatus.setState({ savedAt: Date.now(), failed: false })
+    } catch (error) {
+      console.error("Autosave failed", error)
+      if (!useSaveStatus.getState().failed) {
+        toast("Autosave failed: browser storage is full. Remove large images or export JSON.", "error")
+      }
+      useSaveStatus.setState({ failed: true })
+    }
+  },
+}
+
 export const useConversationStore = create<ConversationStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       conversation: buildDefaultConversation(),
       layoutId: defaultLayoutId,
       themeId: "light",
@@ -297,181 +339,127 @@ export const useConversationStore = create<ConversationStore>()(
       exportSettings: defaultExportSettings,
       ui: defaultUiState,
       history: { past: [], future: [] },
-      lastAutosaveAt: null,
-      setLayout: (layoutId) => set((state) => ({ layoutId, history: pushHistory(state) })),
+      setLayout: (layoutId) =>
+        set((state) => {
+          const layout = getLayoutConfig(layoutId)
+          const themeId = layout.themes.some((theme) => theme.id === state.themeId)
+            ? state.themeId
+            : (layout.themes[0]?.id ?? "light")
+          return { layoutId, themeId, history: pushHistory(state) }
+        }),
       setTheme: (themeId) => set((state) => ({ themeId, history: pushHistory(state) })),
       setActiveParticipant: (participantId) =>
         set((state) => ({ activeParticipantId: participantId, history: pushHistory(state) })),
       setBackgroundImageUrl: (url) =>
         set((state) => ({ backgroundImageUrl: url, history: pushHistory(state) })),
       setBackgroundImageOpacity: (opacity) =>
-        set((state) => ({ backgroundImageOpacity: opacity, history: pushHistory(state) })),
+        set((state) => ({
+          backgroundImageOpacity: opacity,
+          history: pushHistory(state, "background-opacity"),
+        })),
       clearBackgroundImage: () =>
         set((state) => ({ backgroundImageUrl: "", history: pushHistory(state) })),
       setBackgroundColor: (color) =>
-        set((state) => ({ backgroundColor: color, history: pushHistory(state) })),
-      setLastAutosaveAt: (timestamp) => set({ lastAutosaveAt: timestamp }),
+        set((state) => ({
+          backgroundColor: color,
+          history: pushHistory(state, "background-color"),
+        })),
       addParticipant: (participant) =>
         set((state) => {
-          const newParticipant: Participant = { id: generateId(), ...participant }
-          const nextParticipants = [...state.conversation.participants, newParticipant]
-          const groupName =
-            nextParticipants.length > 2
-              ? state.conversation.groupName ?? "Group Chat"
-              : undefined
+          const participants = [
+            ...state.conversation.participants,
+            { id: generateId(), ...participant },
+          ]
           return {
-            conversation: {
-              ...state.conversation,
-              participants: nextParticipants,
-              groupName,
-              metadata: {
-                ...state.conversation.metadata,
-                updatedAt: new Date().toISOString(),
-              },
-            },
+            conversation: touchConversation(state.conversation, {
+              participants,
+              groupName: resolveGroupName(participants, state.conversation.groupName),
+            }),
             history: pushHistory(state),
           }
         }),
       updateParticipant: (participantId, updates) =>
         set((state) => ({
-          conversation: {
-            ...state.conversation,
+          conversation: touchConversation(state.conversation, {
             participants: state.conversation.participants.map((participant) =>
-              participant.id === participantId
-                ? { ...participant, ...updates }
-                : participant,
+              participant.id === participantId ? { ...participant, ...updates } : participant,
             ),
-            metadata: {
-              ...state.conversation.metadata,
-              updatedAt: new Date().toISOString(),
-            },
-          },
-          history: pushHistory(state),
+          }),
+          history: pushHistory(state, `participant:${participantId}:${Object.keys(updates).join()}`),
         })),
       removeParticipant: (participantId) =>
         set((state) => {
-          const remaining = state.conversation.participants.filter(
+          const participants = state.conversation.participants.filter(
             (participant) => participant.id !== participantId,
           )
           const activeParticipantId =
-            state.activeParticipantId === participantId && remaining.length
-              ? remaining[0].id
+            state.activeParticipantId === participantId && participants.length
+              ? participants[0].id
               : state.activeParticipantId
-          const groupName =
-            remaining.length > 2 ? state.conversation.groupName ?? "Group Chat" : undefined
           return {
             activeParticipantId,
-            conversation: {
-              ...state.conversation,
-              participants: remaining,
+            conversation: touchConversation(state.conversation, {
+              participants,
               messages: state.conversation.messages.filter(
                 (message) => message.senderId !== participantId,
               ),
-              groupName,
-              metadata: {
-                ...state.conversation.metadata,
-                updatedAt: new Date().toISOString(),
-              },
-            },
+              groupName: resolveGroupName(participants, state.conversation.groupName),
+            }),
             history: pushHistory(state),
           }
         }),
       setGroupName: (groupName) =>
         set((state) => ({
-          conversation: {
-            ...state.conversation,
+          conversation: touchConversation(state.conversation, {
             groupName: state.conversation.participants.length > 2 ? groupName : undefined,
-            metadata: {
-              ...state.conversation.metadata,
-              updatedAt: new Date().toISOString(),
-            },
-          },
-          history: pushHistory(state),
+          }),
+          history: pushHistory(state, "group-name"),
         })),
       addMessage: (payload) =>
         set((state) => ({
-          conversation: {
-            ...state.conversation,
-            messages: [
-              ...state.conversation.messages,
-              {
-                id: generateId(),
-                ...payload,
-              },
-            ],
-            metadata: {
-              ...state.conversation.metadata,
-              updatedAt: new Date().toISOString(),
-            },
-          },
+          conversation: touchConversation(state.conversation, {
+            messages: [...state.conversation.messages, { id: generateId(), ...payload }],
+          }),
           history: pushHistory(state),
         })),
       updateMessage: (messageId, updates) =>
         set((state) => ({
-          conversation: {
-            ...state.conversation,
+          conversation: touchConversation(state.conversation, {
             messages: state.conversation.messages.map((message) =>
               message.id === messageId ? { ...message, ...updates } : message,
             ),
-            metadata: {
-              ...state.conversation.metadata,
-              updatedAt: new Date().toISOString(),
-            },
-          },
+          }),
           history: pushHistory(state),
         })),
       deleteMessage: (messageId) =>
         set((state) => ({
-          conversation: {
-            ...state.conversation,
+          conversation: touchConversation(state.conversation, {
             messages: state.conversation.messages.filter((message) => message.id !== messageId),
-            metadata: {
-              ...state.conversation.metadata,
-              updatedAt: new Date().toISOString(),
-            },
-          },
+          }),
           history: pushHistory(state),
         })),
       duplicateMessage: (messageId) =>
         set((state) => {
-          const message = state.conversation.messages.find((entry) => entry.id === messageId)
-          if (!message) return state
-          const copy: Message = {
-            ...message,
-            id: generateId(),
-            timestamp: new Date().toISOString(),
-          }
+          const messages = state.conversation.messages
+          const index = messages.findIndex((entry) => entry.id === messageId)
+          if (index === -1) return state
+          const copy: Message = { ...messages[index], id: generateId() }
           return {
-            conversation: {
-              ...state.conversation,
-              messages: [...state.conversation.messages, copy],
-              metadata: {
-                ...state.conversation.metadata,
-                updatedAt: new Date().toISOString(),
-              },
-            },
+            conversation: touchConversation(state.conversation, {
+              messages: [...messages.slice(0, index + 1), copy, ...messages.slice(index + 1)],
+            }),
             history: pushHistory(state),
           }
         }),
       setMessages: (messages) =>
         set((state) => ({
-          conversation: {
-            ...state.conversation,
-            messages,
-            metadata: {
-              ...state.conversation.metadata,
-              updatedAt: new Date().toISOString(),
-            },
-          },
+          conversation: touchConversation(state.conversation, { messages }),
           history: pushHistory(state),
         })),
       setExportSettings: (settings) =>
         set((state) => ({
-          exportSettings: {
-            ...state.exportSettings,
-            ...settings,
-          },
-          history: pushHistory(state),
+          exportSettings: { ...state.exportSettings, ...settings },
+          history: pushHistory(state, `export:${Object.keys(settings).join()}`),
         })),
       setUi: (updates) => set((state) => ({ ui: { ...state.ui, ...updates } })),
       resetConversation: () =>
@@ -484,20 +472,17 @@ export const useConversationStore = create<ConversationStore>()(
           backgroundImageOpacity: 0.35,
           backgroundColor: "",
           exportSettings: { ...defaultExportSettings },
-          ui: { ...defaultUiState },
-          lastAutosaveAt: null,
+          ui: { ...defaultUiState, activeView: state.ui.activeView },
           history: pushHistory(state),
         })),
       loadConversation: (conversation) => {
         const legacyTitle = (conversation as { title?: string }).title
         const participants = normalizeParticipants(conversation.participants)
-        const groupName =
-          participants.length > 2 ? conversation.groupName ?? legacyTitle ?? "Group Chat" : undefined
         set((state) => ({
           conversation: {
             ...conversation,
             participants,
-            groupName,
+            groupName: resolveGroupName(participants, conversation.groupName ?? legacyTitle),
           },
           activeParticipantId: participants[0]?.id ?? "",
           history: pushHistory(state),
@@ -505,17 +490,11 @@ export const useConversationStore = create<ConversationStore>()(
       },
       undo: () =>
         set((state) => {
-          if (state.history.past.length === 0) return state
-          const previous = state.history.past[state.history.past.length - 1]
+          const previous = state.history.past.at(-1)
+          if (!previous) return state
+          lastHistoryKey = null
           return {
-            conversation: previous.conversation,
-            layoutId: previous.layoutId,
-            themeId: previous.themeId,
-            activeParticipantId: previous.activeParticipantId,
-            backgroundImageUrl: previous.backgroundImageUrl,
-            backgroundImageOpacity: previous.backgroundImageOpacity,
-            backgroundColor: previous.backgroundColor,
-            exportSettings: previous.exportSettings,
+            ...previous,
             history: {
               past: state.history.past.slice(0, -1),
               future: [buildSnapshot(state), ...state.history.future].slice(0, HISTORY_LIMIT),
@@ -524,51 +503,21 @@ export const useConversationStore = create<ConversationStore>()(
         }),
       redo: () =>
         set((state) => {
-          if (state.history.future.length === 0) return state
           const next = state.history.future[0]
+          if (!next) return state
+          lastHistoryKey = null
           return {
-            conversation: next.conversation,
-            layoutId: next.layoutId,
-            themeId: next.themeId,
-            activeParticipantId: next.activeParticipantId,
-            backgroundImageUrl: next.backgroundImageUrl,
-            backgroundImageOpacity: next.backgroundImageOpacity,
-            backgroundColor: next.backgroundColor,
-            exportSettings: next.exportSettings,
+            ...next,
             history: {
               past: [...state.history.past, buildSnapshot(state)].slice(-HISTORY_LIMIT),
               future: state.history.future.slice(1),
             },
           }
         }),
-      saveSnapshot: () => {
-        const snapshot = get()
-        try {
-          localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({
-              conversation: snapshot.conversation,
-              layoutId: snapshot.layoutId,
-              themeId: snapshot.themeId,
-              activeParticipantId: snapshot.activeParticipantId,
-              exportSettings: snapshot.exportSettings,
-            }),
-          )
-        } catch (error) {
-          console.error("Failed to save snapshot", error)
-        }
-      },
-      clearSnapshot: () => {
-        try {
-          localStorage.removeItem(STORAGE_KEY)
-        } catch (error) {
-          console.error("Failed to clear snapshot", error)
-        }
-      },
     }),
     {
       name: STORAGE_KEY,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => autosaveStorage),
       version: 3,
       migrate: (state) => {
         if (!state) return state
@@ -594,7 +543,6 @@ export const useConversationStore = create<ConversationStore>()(
         backgroundImageOpacity: state.backgroundImageOpacity,
         backgroundColor: state.backgroundColor,
         exportSettings: state.exportSettings,
-        lastAutosaveAt: state.lastAutosaveAt,
       }),
     },
   ),

@@ -1,41 +1,63 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import {
   DndContext,
+  DragOverlay,
+  KeyboardSensor,
   PointerSensor,
-  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
+  type Announcements,
+  type Modifier,
 } from "@dnd-kit/core"
 import {
   SortableContext,
   arrayMove,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
-import { CSS, type Transform } from "@dnd-kit/utilities"
+import { CSS } from "@dnd-kit/utilities"
 import {
-  ArrowDown,
-  ArrowUp,
+  CalendarDays,
   Copy,
   Eye,
   EyeOff,
   GripVertical,
+  List,
+  MessageSquarePlus,
   MoreHorizontal,
+  MoreVertical,
   Pencil,
+  ScrollText,
   Trash2,
+  X,
 } from "lucide-react"
 import type { Message } from "@/types/message"
+import type { Participant } from "@/types/conversation"
 import { useConversationStore } from "@/store/conversationStore"
+import { undoAction } from "@/store/fileActions"
+import { toast } from "@/store/toastStore"
 import { MessageForm } from "@/components/editor/MessageForm"
+import { MessageComposer } from "@/components/editor/MessageComposer"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Segmented } from "@/components/ui/segmented"
 import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/utils/cn"
-import { formatTimestamp, generateId } from "@/utils/helpers"
+import {
+  formatTimestamp,
+  generateId,
+  getNextTimestamp,
+  getSelfParticipantId,
+} from "@/utils/helpers"
 
 const toDateInputValue = (iso: string) => {
   const date = new Date(iso)
@@ -44,88 +66,162 @@ const toDateInputValue = (iso: string) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10)
 }
 
-const MessageRow = ({
+const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 })
+
+const BubblePreview = ({
   message,
-  onEdit,
-  onDelete,
-  isActionsOpen,
-  onToggleActions,
+  isOwn,
+  className,
 }: {
   message: Message
+  isOwn: boolean
+  className?: string
+}) => {
+  if (message.type === "system") {
+    return (
+      <div
+        className={cn(
+          "max-w-[90%] rounded-full bg-slate-100 px-3 py-1 text-center text-xs text-slate-500 italic",
+          className,
+        )}
+      >
+        <span className="line-clamp-2">{message.content || "System message"}</span>
+      </div>
+    )
+  }
+  return (
+    <div
+      className={cn(
+        "max-w-[85%] overflow-hidden rounded-2xl text-left text-sm shadow-sm",
+        isOwn
+          ? "rounded-br-md bg-indigo-600 text-white"
+          : "rounded-bl-md border border-slate-200 bg-white text-slate-800",
+        className,
+      )}
+    >
+      {message.imageUrl ? (
+        <img src={message.imageUrl} alt="" className="max-h-40 w-full object-cover" />
+      ) : null}
+      {message.content ? (
+        <p className="line-clamp-4 px-3 py-1.5 break-words whitespace-pre-wrap">{message.content}</p>
+      ) : message.imageUrl ? null : (
+        <p className="px-3 py-1.5 italic opacity-60">Empty message</p>
+      )}
+    </div>
+  )
+}
+
+interface MessageRowProps {
+  message: Message
+  sender: Participant | undefined
+  isOwn: boolean
+  showName: boolean
+  isEditing: boolean
   onEdit: () => void
   onDuplicate: () => void
+  onToggleHidden: () => void
   onDelete: () => void
-  onToggleVisibility: () => void
-  isActionsOpen: boolean
-  onToggleActions: () => void
-}) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
-    id: message.id,
-    animateLayoutChanges: () => false,
-  })
+}
 
-  const isHidden = Boolean(message.isHidden)
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: "none",
-  }
+const MessageRow = ({
+  message,
+  sender,
+  isOwn,
+  showName,
+  isEditing,
+  onEdit,
+  onDuplicate,
+  onToggleHidden,
+  onDelete,
+}: MessageRowProps) => {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: message.id })
+  const isSystem = message.type === "system"
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm hover:bg-slate-50",
-        isHidden && "bg-slate-50 text-slate-500",
-        isDragging && "ring-2 ring-slate-900/20",
+        "group relative flex items-start gap-1 rounded-xl py-0.5 pr-1",
+        isDragging && "z-10 opacity-30",
+        isEditing && "bg-slate-50",
       )}
     >
-      <Button
-        variant="ghost"
-        size="icon"
-        className="hidden cursor-grab sm:inline-flex"
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        className="mt-0.5 flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-slate-300 transition hover:bg-slate-100 hover:text-slate-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none active:cursor-grabbing"
+        aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="h-4 w-4" />
-      </Button>
-      <div className="min-w-0 flex-1">
-        <div
+      </button>
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col",
+          isSystem ? "items-center" : isOwn ? "items-end" : "items-start",
+          message.isHidden && "opacity-40",
+        )}
+      >
+        {showName && !isSystem ? (
+          <span
+            className="mb-0.5 px-1 text-[11px] font-semibold"
+            style={{ color: sender?.color ?? "#64748b" }}
+          >
+            {sender?.name || "Unknown"}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={onEdit}
           className={cn(
-            "text-sm font-medium break-words whitespace-normal sm:truncate",
-            isHidden ? "text-slate-500" : "text-slate-900",
+            "flex w-full cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none",
+            isSystem ? "justify-center" : isOwn ? "justify-end" : "justify-start",
           )}
-          title={message.content}
+          aria-label={`Edit message${message.content ? `: ${message.content.slice(0, 60)}` : ""}`}
         >
-          {message.content}
-        </div>
-        <div className="text-xs text-slate-500">
-          {message.type} - {formatTimestamp(message.timestamp)}
-        </div>
+          <BubblePreview message={message} isOwn={isOwn} />
+        </button>
+        <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-slate-400 tabular-nums">
+          {message.isHidden ? <EyeOff className="h-3 w-3" /> : null}
+          {formatTimestamp(message.timestamp)}
+          {isOwn && !isSystem ? ` · ${message.status}` : ""}
+          {message.isHidden ? " · hidden" : ""}
+        </span>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={onEdit}>
-          <Pencil className="h-4 w-4" />
-          <span className="sr-only">Edit</span>
-        </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="hidden sm:inline-flex" onClick={onDelete}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Delete</TooltipContent>
-        </Tooltip>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(isActionsOpen && "bg-slate-100")}
-          onClick={onToggleActions}
-        >
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">More actions</span>
-        </Button>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="mt-0.5 h-7 w-7 opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
+            aria-label="Message actions"
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-48">
+          <DropdownMenuItem onSelect={onEdit}>
+            <Pencil />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onDuplicate}>
+            <Copy />
+            Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onToggleHidden}>
+            {message.isHidden ? <Eye /> : <EyeOff />}
+            {message.isHidden ? "Show in chat" : "Hide from chat"}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem destructive onSelect={onDelete}>
+            <Trash2 />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
@@ -134,316 +230,247 @@ export const ConversationBuilder = () => {
   const messages = useConversationStore((state) => state.conversation.messages)
   const participants = useConversationStore((state) => state.conversation.participants)
   const activeParticipantId = useConversationStore((state) => state.activeParticipantId)
-  const addMessage = useConversationStore((state) => state.addMessage)
   const updateMessage = useConversationStore((state) => state.updateMessage)
   const deleteMessage = useConversationStore((state) => state.deleteMessage)
   const duplicateMessage = useConversationStore((state) => state.duplicateMessage)
   const setMessages = useConversationStore((state) => state.setMessages)
 
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const [mode, setMode] = useState<"list" | "script">("list")
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [openActionsId, setOpenActionsId] = useState<string | null>(null)
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
-  const [isAddOpen, setIsAddOpen] = useState(false)
-  const [viewMode, setViewMode] = useState<"standard" | "easy">("standard")
-  const [easyInput, setEasyInput] = useState("")
-  const [easyError, setEasyError] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null)
-  const toastTimerRef = useRef<number | null>(null)
-
-  const { globalDate, hasMixedDates } = useMemo(() => {
-    if (messages.length === 0) {
-      return { globalDate: "", hasMixedDates: false }
-    }
-    const dateValues = messages.map((message) => toDateInputValue(message.timestamp))
-    const uniqueDates = new Set(dateValues)
-    return {
-      globalDate: uniqueDates.size === 1 ? dateValues[0] : "",
-      hasMixedDates: uniqueDates.size > 1,
-    }
-  }, [messages])
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [isDateOpen, setIsDateOpen] = useState(false)
+  const [script, setScript] = useState("")
+  const [scriptError, setScriptError] = useState<string | null>(null)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const restrictToVerticalAxis = ({ transform }: { transform: Transform }) => ({
-    ...transform,
-    x: 0,
-  })
+  const selfId = getSelfParticipantId(participants, activeParticipantId)
+  const otherId = participants.find((participant) => participant.id !== selfId)?.id ?? selfId
+  const participantById = new Map(participants.map((participant) => [participant.id, participant]))
+  const selfName = participantById.get(selfId)?.name || "You"
+  const otherName = participantById.get(otherId)?.name || "Them"
+  const hiddenCount = messages.filter((message) => message.isHidden).length
+  const dates = new Set(messages.map((message) => toDateInputValue(message.timestamp)))
+  const sharedDate = dates.size === 1 ? [...dates][0] : ""
+  const draggingMessage = messages.find((message) => message.id === draggingId)
+  const positionOf = (id: string | number) => messages.findIndex((message) => message.id === id) + 1
 
-  const moveMessage = (messageId: string, direction: -1 | 1) => {
-    const index = messages.findIndex((message) => message.id === messageId)
-    const targetIndex = index + direction
-    if (index === -1 || targetIndex < 0 || targetIndex >= messages.length) return
-    setMessages(arrayMove(messages, index, targetIndex))
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `Picked up message ${positionOf(active.id)} of ${messages.length}.`,
+    onDragOver: ({ over }) => (over ? `Message is over position ${positionOf(over.id)}.` : undefined),
+    onDragEnd: ({ over }) =>
+      over ? `Message dropped at position ${positionOf(over.id)}.` : "Message dropped.",
+    onDragCancel: () => "Reordering cancelled.",
   }
 
-  const handleGlobalDateChange = (value: string) => {
-    if (!value || messages.length === 0) return
+  const scrollListToEnd = () =>
+    requestAnimationFrame(() =>
+      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }),
+    )
+
+  const handleDateChange = (value: string) => {
     const target = new Date(`${value}T00:00`)
-    if (Number.isNaN(target.getTime())) return
+    if (!value || Number.isNaN(target.getTime())) return
     setMessages(
       messages.map((message) => {
-        const current = new Date(message.timestamp)
-        if (Number.isNaN(current.getTime())) return message
-        const updated = new Date(current)
+        const updated = new Date(message.timestamp)
+        if (Number.isNaN(updated.getTime())) return message
         updated.setFullYear(target.getFullYear(), target.getMonth(), target.getDate())
         return { ...message, timestamp: updated.toISOString() }
       }),
     )
   }
 
-  const resolveReceiverId = () => {
-    const fallback = participants[0]?.id ?? ""
-    if (!activeParticipantId) return fallback
-    return participants.find((participant) => participant.id !== activeParticipantId)?.id ?? fallback
-  }
-
-  const showToast = (message: string, tone: "success" | "error" = "success") => {
-    setToast({ message, tone })
-    if (toastTimerRef.current) {
-      window.clearTimeout(toastTimerRef.current)
-    }
-    toastTimerRef.current = window.setTimeout(() => {
-      setToast(null)
-      toastTimerRef.current = null
-    }, 2400)
-  }
-
-  useEffect(
-    () => () => {
-      if (toastTimerRef.current) {
-        window.clearTimeout(toastTimerRef.current)
-      }
-    },
-    [],
-  )
-
-  const buildEasyText = () =>
+  const buildScript = () =>
     messages
-      .map((message) => {
-        const marker = message.senderId === activeParticipantId ? "<" : ">"
-        return `${marker} ${message.content}`
-      })
+      .map((message) => `${message.senderId === selfId ? "<" : ">"} ${message.content}`)
       .join("\n")
 
-  const handleViewModeChange = (mode: "standard" | "easy") => {
+  const switchMode = (nextMode: "list" | "script") => {
     setEditingId(null)
-    setOpenActionsId(null)
-    setEasyError(null)
-    if (mode === "easy") {
-      setEasyInput(buildEasyText())
-    }
-    setViewMode(mode)
+    setScriptError(null)
+    if (nextMode === "script") setScript(buildScript())
+    setMode(nextMode)
   }
 
-  const handleEasyApply = () => {
-    const receiverId = resolveReceiverId()
-    if (!activeParticipantId || !receiverId) {
-      setEasyError("Add at least two participants to use easy mode.")
-      showToast("Add at least two participants to use easy mode.", "error")
+  const applyScript = () => {
+    if (participants.length < 2) {
+      setScriptError("Add at least two people to use script mode.")
       return
     }
-
-    const lines = easyInput.split("\n")
     const entries: Array<{ senderId: string; content: string }> = []
     let hasInvalidLine = false
-
-    lines.forEach((line) => {
+    script.split("\n").forEach((line) => {
       const trimmed = line.trim()
       if (!trimmed) return
       const marker = trimmed[0]
       if (marker !== "<" && marker !== ">") {
-        if (entries.length) {
-          entries[entries.length - 1].content += `\n${trimmed}`
-        } else {
-          hasInvalidLine = true
-        }
+        if (entries.length) entries[entries.length - 1].content += `\n${trimmed}`
+        else hasInvalidLine = true
         return
       }
       const content = trimmed.slice(1).trim()
-      if (!content) return
-      const senderId = marker === "<" ? activeParticipantId : receiverId
-      entries.push({ senderId, content })
+      if (content) entries.push({ senderId: marker === "<" ? selfId : otherId, content })
     })
-
     if (hasInvalidLine || entries.length === 0) {
-      setEasyError("Use < or > at the start of each message line.")
-      showToast("Use < or > at the start of each message line.", "error")
+      setScriptError("Start each message line with < or >.")
       return
     }
-
-    const now = Date.now()
-    const nextMessages = entries.map((entry, index) => {
+    const nextMessages: Message[] = []
+    entries.forEach((entry, index) => {
       const existing = messages[index]
-      if (existing) {
-        return {
-          ...existing,
-          senderId: entry.senderId,
-          content: entry.content,
-        }
-      }
-      return {
-        id: generateId(),
-        senderId: entry.senderId,
-        content: entry.content,
-        timestamp: new Date(now + index * 1000).toISOString(),
-        type: "text" as const,
-        status: "sent" as const,
-      }
+      nextMessages.push(
+        existing
+          ? { ...existing, senderId: entry.senderId, content: entry.content }
+          : {
+              id: generateId(),
+              senderId: entry.senderId,
+              content: entry.content,
+              timestamp: getNextTimestamp(nextMessages),
+              type: "text",
+              status: "read",
+            },
+      )
     })
-
     setMessages(nextMessages)
-    setEasyError(null)
-    showToast("Easy changes applied.")
+    setScriptError(null)
+    toast(`Applied ${nextMessages.length} messages`, "success", undoAction)
   }
 
-  const hasHidden = messages.some((message) => message.isHidden)
-  const hasVisible = messages.some((message) => !message.isHidden)
-  const activeParticipant = participants.find((participant) => participant.id === activeParticipantId)
-  const receiverParticipant = participants.find(
-    (participant) => participant.id === resolveReceiverId(),
-  )
-
   return (
-    <TooltipProvider>
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Conversation Builder</h3>
-          <p className="text-xs text-slate-500">
-            Add messages, drag to reorder, or switch to Easy mode for bulk edits.
-          </p>
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-2">
+        <Segmented
+          label="Editor mode"
+          size="sm"
+          value={mode}
+          onChange={switchMode}
+          options={[
+            { value: "list", label: <><List />List</>, title: "Edit and drag messages" },
+            { value: "script", label: <><ScrollText />Script</>, title: "Write the whole chat as text" },
+          ]}
+        />
+        {hiddenCount ? (
+          <span className="flex items-center gap-1 text-xs text-slate-400">
+            <EyeOff className="h-3 w-3" />
+            {hiddenCount} hidden
+          </span>
+        ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label="Conversation actions">
+              <MoreVertical />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            <DropdownMenuItem disabled={!messages.length} onSelect={() => setIsDateOpen(true)}>
+              <CalendarDays />
+              Change date of all messages
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!hiddenCount}
+              onSelect={() => setMessages(messages.map((message) => ({ ...message, isHidden: false })))}
+            >
+              <Eye />
+              Show all messages
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={hiddenCount === messages.length}
+              onSelect={() => setMessages(messages.map((message) => ({ ...message, isHidden: true })))}
+            >
+              <EyeOff />
+              Hide all messages
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              destructive
+              disabled={!messages.length}
+              onSelect={() => {
+                setMessages([])
+                toast("Conversation cleared", "info", undoAction)
+              }}
+            >
+              <Trash2 />
+              Clear conversation
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Messages</h4>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-500">{messages.length} total</span>
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <Label className="text-[10px] uppercase text-slate-400">Global date</Label>
-                <Input
-                  type="date"
-                  value={globalDate}
-                  onChange={(event) => handleGlobalDateChange(event.target.value)}
-                  className="h-8 w-[145px] text-xs"
-                  disabled={messages.length === 0}
-                />
-                <span className="text-xs text-slate-400">
-                  {hasMixedDates ? "Mixed dates" : "Keeps time-of-day"}
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setMessages(messages.map((message) => ({ ...message, isHidden: true })))
-                }
-                disabled={!hasVisible}
-              >
-                Hide all
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setMessages(messages.map((message) => ({ ...message, isHidden: false })))
-                }
-                disabled={!hasHidden}
-              >
-                Show all
-              </Button>
-            </div>
+      {isDateOpen ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+          <CalendarDays className="h-4 w-4 text-slate-400" />
+          <span>All messages on</span>
+          <Input
+            type="date"
+            value={sharedDate}
+            onChange={(event) => handleDateChange(event.target.value)}
+            className="h-8 w-auto text-xs"
+          />
+          <span>{sharedDate ? "Times stay the same." : "Messages span several days."}</span>
+          <Button variant="ghost" size="icon-sm" className="ml-auto h-7 w-7" onClick={() => setIsDateOpen(false)} aria-label="Close">
+            <X />
+          </Button>
+        </div>
+      ) : null}
+
+      {mode === "script" ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+          <p className="text-xs leading-relaxed text-slate-500">
+            One message per line. Start with{" "}
+            <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono">&lt;</kbd> for{" "}
+            <span className="font-semibold text-slate-700">{selfName}</span> or{" "}
+            <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono">&gt;</kbd> for{" "}
+            <span className="font-semibold text-slate-700">{otherName}</span>. Lines without a marker
+            continue the previous message.
+          </p>
+          <Textarea
+            value={script}
+            onChange={(event) => {
+              setScript(event.target.value)
+              setScriptError(null)
+            }}
+            placeholder={`< Hey, are we still on for tonight?\n> Yes! 8pm at the usual place`}
+            className="min-h-48 flex-1 resize-none font-mono text-[13px] leading-relaxed"
+            spellCheck={false}
+          />
+          {scriptError ? (
+            <div className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">{scriptError}</div>
+          ) : null}
+          <div className="flex gap-2">
+            <Button onClick={applyScript}>Apply to chat</Button>
+            <Button variant="ghost" onClick={() => setScript(buildScript())}>
+              Revert
+            </Button>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-            <div className="space-y-1">
-              <div className="text-xs font-semibold uppercase text-slate-400">Editor view</div>
-              <p className="text-xs text-slate-500">Switch between the list and easy text editor.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={viewMode === "standard" ? "default" : "outline"}
-                onClick={() => handleViewModeChange("standard")}
-              >
-                Standard
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={viewMode === "easy" ? "default" : "outline"}
-                onClick={() => handleViewModeChange("easy")}
-              >
-                Easy
-              </Button>
-            </div>
-          </div>
-          {viewMode === "easy" ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label className="text-xs uppercase text-slate-400">Easy editor</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEasyInput(buildEasyText())}
-                >
-                  Refresh
-                </Button>
-              </div>
-              <div className="mt-3 space-y-2">
-                <Textarea
-                  value={easyInput}
-                  onChange={(event) => {
-                    setEasyInput(event.target.value)
-                    if (easyError) setEasyError(null)
-                  }}
-                  placeholder={`< ${activeParticipant?.name ?? "Sender"} message\n> ${receiverParticipant?.name ?? "Receiver"} message`}
-                  className="min-h-[280px] resize-y"
-                />
-                <p className="text-xs text-slate-500">
-                  <span className="font-semibold">&lt;</span> = {activeParticipant?.name ?? "Sender"},{" "}
-                  <span className="font-semibold">&gt;</span> = {receiverParticipant?.name ?? "Receiver"}.
-                  New lines become new messages, timestamps default to now.
-                </p>
-                {easyError ? (
-                  <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                    {easyError}
-                  </div>
-                ) : null}
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button type="button" onClick={handleEasyApply}>
-                  Apply changes
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setEasyInput("")
-                    setEasyError(null)
-                  }}
-                >
-                  Clear
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {messages.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-                  No messages yet. Add the first entry above.
+        </div>
+      ) : (
+        <>
+          <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+            {messages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-500">
+                  <MessageSquarePlus className="h-6 w-6" />
                 </div>
-              ) : null}
+                <div className="text-sm font-semibold text-slate-900">No messages yet</div>
+                <p className="max-w-xs text-xs text-slate-500">
+                  Type below, drop images anywhere, or switch to Script to paste a whole conversation.
+                </p>
+              </div>
+            ) : (
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 modifiers={[restrictToVerticalAxis]}
+                accessibility={{ announcements }}
+                onDragStart={({ active }) => setDraggingId(String(active.id))}
+                onDragCancel={() => setDraggingId(null)}
                 onDragEnd={({ active, over }) => {
+                  setDraggingId(null)
                   if (!over || active.id === over.id) return
                   const oldIndex = messages.findIndex((message) => message.id === active.id)
                   const newIndex = messages.findIndex((message) => message.id === over.id)
@@ -455,110 +482,43 @@ export const ConversationBuilder = () => {
                   items={messages.map((message) => message.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="space-y-2">
-                    {messages.map((message) => {
-                      const canMoveUp = messages[0]?.id !== message.id
-                      const canMoveDown = messages[messages.length - 1]?.id !== message.id
-                      const isActionsOpen = openActionsId === message.id
+                  <div className="space-y-1">
+                    {messages.map((message, index) => {
+                      const previous = messages[index - 1]
+                      const isEditing = editingId === message.id
                       return (
-                        <div key={message.id} className="space-y-2">
+                        <div key={message.id}>
                           <MessageRow
                             message={message}
-                            onEdit={() => {
-                              setEditingId(message.id)
-                              setIsAdvancedOpen(false)
-                              setOpenActionsId(null)
-                            }}
-                            onToggleVisibility={() =>
+                            sender={participantById.get(message.senderId)}
+                            isOwn={message.senderId === selfId}
+                            showName={
+                              !previous ||
+                              previous.senderId !== message.senderId ||
+                              previous.type === "system"
+                            }
+                            isEditing={isEditing}
+                            onEdit={() => setEditingId(isEditing ? null : message.id)}
+                            onDuplicate={() => duplicateMessage(message.id)}
+                            onToggleHidden={() =>
                               updateMessage(message.id, { isHidden: !message.isHidden })
                             }
-                            onDuplicate={() => {
-                              duplicateMessage(message.id)
-                              setOpenActionsId(null)
-                            }}
                             onDelete={() => {
                               deleteMessage(message.id)
-                              setOpenActionsId(null)
+                              toast("Message deleted", "info", undoAction)
                             }}
-                            isActionsOpen={isActionsOpen}
-                            onToggleActions={() =>
-                              setOpenActionsId((current) => (current === message.id ? null : message.id))
-                            }
                           />
-                          {isActionsOpen ? (
-                            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-                              <div className="flex items-center gap-1 sm:hidden">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => moveMessage(message.id, -1)}
-                                  disabled={!canMoveUp}
-                                >
-                                  <ArrowUp className="h-4 w-4" />
-                                  <span className="sr-only">Move up</span>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => moveMessage(message.id, 1)}
-                                  disabled={!canMoveDown}
-                                >
-                                  <ArrowDown className="h-4 w-4" />
-                                  <span className="sr-only">Move down</span>
-                                </Button>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  updateMessage(message.id, { isHidden: !message.isHidden })
-                                  setOpenActionsId(null)
-                                }}
-                              >
-                                {message.isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                                {message.isHidden ? "Show in chat" : "Hide from chat"}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  duplicateMessage(message.id)
-                                  setOpenActionsId(null)
-                                }}
-                              >
-                                <Copy className="h-4 w-4" />
-                                Duplicate
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="sm:hidden"
-                                onClick={() => {
-                                  deleteMessage(message.id)
-                                  setOpenActionsId(null)
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Delete
-                              </Button>
-                            </div>
-                          ) : null}
-                          {editingId === message.id ? (
-                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          {isEditing ? (
+                            <div className="mt-1 mb-3 ml-7 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                               <MessageForm
                                 key={message.id}
                                 participants={participants}
                                 initial={message}
-                                defaultSenderId={activeParticipantId}
-                                compact
-                                advancedOpen={isAdvancedOpen}
-                                onToggleAdvanced={() => setIsAdvancedOpen((prev) => !prev)}
                                 onSubmit={(payload) => {
                                   updateMessage(message.id, payload)
                                   setEditingId(null)
                                 }}
                                 onCancel={() => setEditingId(null)}
-                                submitLabel="Save changes"
                               />
                             </div>
                           ) : null}
@@ -567,59 +527,32 @@ export const ConversationBuilder = () => {
                     })}
                   </div>
                 </SortableContext>
+                <DragOverlay>
+                  {draggingMessage ? (
+                    <div
+                      className={cn(
+                        "flex cursor-grabbing rounded-2xl pl-7",
+                        draggingMessage.type === "system"
+                          ? "justify-center"
+                          : draggingMessage.senderId === selfId
+                            ? "justify-end"
+                            : "justify-start",
+                      )}
+                    >
+                      <BubblePreview
+                        message={draggingMessage}
+                        isOwn={draggingMessage.senderId === selfId}
+                        className="shadow-xl ring-2 shadow-slate-900/15 ring-indigo-500/40"
+                      />
+                    </div>
+                  ) : null}
+                </DragOverlay>
               </DndContext>
-            </>
-          )}
-        </div>
-        {viewMode === "standard" ? (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              {isAddOpen ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <MessageForm
-                    key="new"
-                    participants={participants}
-                    initial={null}
-                    defaultSenderId={activeParticipantId}
-                    compact
-                    resetOnSubmit
-                    onSubmit={(payload) => {
-                      addMessage(payload)
-                    }}
-                    submitLabel="Add message"
-                  />
-                </div>
-              ) : null}
-              <Button
-                type="button"
-                className="w-full"
-                variant={isAddOpen ? "outline" : "default"}
-                onClick={() => setIsAddOpen((prev) => !prev)}
-              >
-                {isAddOpen ? "Hide add message" : "Add message"}
-              </Button>
-            </div>
-          </>
-        ) : null}
-      </div>
-      {toast ? (
-        <div
-          className="pointer-events-none fixed top-5 left-1/2 z-50 w-[90%] -translate-x-1/2 sm:w-auto"
-          aria-live="polite"
-        >
-          <div
-            className={cn(
-              "rounded-full px-4 py-2 text-sm font-medium shadow-lg",
-              toast.tone === "success"
-                ? "bg-emerald-500 text-white"
-                : "bg-red-600 text-white",
             )}
-          >
-            {toast.message}
           </div>
-        </div>
-      ) : null}
-    </TooltipProvider>
+          <MessageComposer onSent={scrollListToEnd} />
+        </>
+      )}
+    </div>
   )
 }

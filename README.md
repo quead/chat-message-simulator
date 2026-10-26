@@ -11,10 +11,14 @@
 - **🎨 Multiple Layouts**: Authentic recreations of popular messaging apps including WhatsApp, iMessage, Snapchat, Facebook Messenger, Instagram, and Tinder.
 - **🌓 Light & Dark Modes**: Full support for light and dark themes across all layouts.
 - **⚡ Live Preview**: Real-time rendering of your conversation as you build it.
-- **🖼️ High-Quality Export**: Download your creations as PNG or JPEG images with custom scaling.
-- **👥 Participant Management**: Add multiple users with custom avatars and names.
-- **📱 Responsive Design**: Works seamlessly on desktop and mobile devices.
-- **🖱️ Drag & Drop**: Reorder messages easily (powered by dnd-kit).
+- **💬 Chat-style Composer**: Type messages like in a real chat. `Enter` adds, `Ctrl+Enter` adds and switches sender, paste or attach images.
+- **📝 Script Mode**: Write or paste a whole conversation as text (`<` for you, `>` for them).
+- **🖱️ Drag & Drop**: Reorder messages with mouse, touch, or keyboard; drop images anywhere to add them as messages; drop a `.json` export to open it; drop images on avatars or the wallpaper.
+- **🖼️ High-Quality Export**: PNG or JPEG at 1x–3x, as the current view, one tall image of the full chat, or screen-by-screen screenshots.
+- **👥 Participant Management**: Avatars, verified badges, presence status, colors, and group chats.
+- **↩️ Undo Everything**: 50-step undo/redo (`Ctrl+Z` / `Ctrl+Shift+Z`) plus one-click undo after destructive actions.
+- **💾 Autosave**: Work is saved in your browser; save and open conversations as JSON.
+- **📱 Responsive Design**: Works on desktop and mobile devices.
 
 ## 📱 Supported Platforms
 
@@ -37,38 +41,50 @@ Built with modern web technologies for performance and developer experience:
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **State Management**: [Zustand](https://github.com/pmndrs/zustand)
 - **UI Components**: [Radix UI](https://www.radix-ui.com/) & [Lucide React](https://lucide.dev/)
+- **Drag & Drop**: [dnd-kit](https://dndkit.com/)
 - **Export**: [html-to-image](https://github.com/bubkoo/html-to-image)
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js (v18 or higher recommended)
-- npm, yarn, or pnpm
+- Node.js 24 (what CI uses; 20.19+ works with Vite 8)
+- Yarn 1 (the repo ships a `yarn.lock`)
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/chat-message-simulator.git
+   git clone https://github.com/quead/chat-message-simulator.git
    cd chat-message-simulator
    ```
 
 2. **Install dependencies**
    ```bash
-   npm install
-   # or
    yarn install
    ```
 
 3. **Start the development server**
    ```bash
-   npm run dev
-   # or
    yarn dev
    ```
 
 4. Open your browser and navigate to `http://localhost:5173`
+
+Before pushing, run `yarn lint` and `yarn build` (CI runs both).
+
+## 🚢 Deployment
+
+Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): it lints, builds, and publishes `dist/` to the `master` branch of [quead/quead.github.io](https://github.com/quead/quead.github.io), which GitHub Pages serves at https://quead.github.io/. Pull requests run the same lint and build without deploying, and the workflow can also be started by hand from the Actions tab.
+
+The push uses the `PAGES_DEPLOY_KEY` repository secret: the private half of a write-enabled deploy key registered on `quead/quead.github.io`. To rotate it:
+
+```bash
+ssh-keygen -t ed25519 -N "" -f deploy_key
+gh repo deploy-key add deploy_key.pub -R quead/quead.github.io --allow-write --title "chat-message-simulator Actions deploy"
+gh secret set PAGES_DEPLOY_KEY -R quead/chat-message-simulator < deploy_key
+rm deploy_key deploy_key.pub
+```
 
 ## 📂 Project Structure
 
@@ -81,9 +97,9 @@ src/
 │   ├── layout/        # App layout and navigation
 │   └── ui/            # Reusable UI components (Radix + Tailwind)
 ├── constants/         # Layout definitions and presets
-├── layouts/           # Platform-specific layout wrappers
-├── store/             # Global state (Zustand)
-└── utils/             # Helper functions
+├── hooks/             # Preview measuring/export and file drop hooks
+├── store/             # Global state (Zustand), toasts, file import actions
+└── utils/             # Helpers, image export, JSON import validation
 ```
 
 ## 🤝 Contributing

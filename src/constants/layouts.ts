@@ -1,4 +1,6 @@
 import type { LayoutConfig } from "../types/layout"
+import whatsappDarkPattern from "../assets/whatsapp-dark.webp"
+import whatsappLightPattern from "../assets/whatsapp-light.webp"
 
 export const layoutConfigs: LayoutConfig[] = [
   {
@@ -32,7 +34,7 @@ export const layoutConfigs: LayoutConfig[] = [
           muted: "#667781",
           border: "#d1d7db",
         },
-        pattern: "url('/assets/whatsapp-light.webp')",
+        pattern: `url('${whatsappLightPattern}')`,
       },
       {
         id: "dark",
@@ -52,7 +54,7 @@ export const layoutConfigs: LayoutConfig[] = [
           muted: "#8696a0",
           border: "#2a3942",
         },
-        pattern: "url('/assets/whatsapp-dark.webp')",
+        pattern: `url('${whatsappDarkPattern}')`,
       },
     ],
   },
