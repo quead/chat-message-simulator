@@ -49,32 +49,32 @@ export const LayoutPicker = () => {
             aria-pressed={isActive}
             onClick={() => setLayout(layout.id)}
             className={cn(
-              "group relative overflow-hidden rounded-xl border bg-white text-left transition focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none",
+              "group relative overflow-hidden rounded-lg border bg-white text-left transition focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none",
               isActive
-                ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                : "border-slate-200 hover:border-slate-300 hover:shadow-sm",
+                ? "border-black"
+                : "border-neutral-200 hover:border-neutral-300",
             )}
           >
             <div className="flex h-[72px] flex-col" style={{ backgroundColor: colors.background }}>
               <div className="h-3 shrink-0" style={{ backgroundColor: colors.header }} />
               <div className="flex flex-1 flex-col justify-center gap-1 px-2">
                 <span
-                  className="h-2.5 w-3/5 rounded-full ring-1 ring-black/10"
+                  className="h-2.5 w-3/5 rounded-full border border-black/10"
                   style={{ backgroundColor: colors.bubbleReceived }}
                 />
                 <span
-                  className="ml-auto h-2.5 w-1/2 rounded-full ring-1 ring-black/10"
+                  className="ml-auto h-2.5 w-1/2 rounded-full border border-black/10"
                   style={{ backgroundColor: colors.bubbleSent }}
                 />
                 <span
-                  className="h-2.5 w-2/5 rounded-full ring-1 ring-black/10"
+                  className="h-2.5 w-2/5 rounded-full border border-black/10"
                   style={{ backgroundColor: colors.bubbleReceived }}
                 />
               </div>
             </div>
-            <div className="flex items-center justify-between gap-1 border-t border-slate-100 px-2.5 py-1.5">
-              <span className="truncate text-xs font-medium text-slate-700">{layout.name}</span>
-              {isActive ? <Check className="h-3.5 w-3.5 shrink-0 text-indigo-600" /> : null}
+            <div className="flex items-center justify-between gap-1 border-t border-neutral-100 px-2.5 py-1.5">
+              <span className="truncate text-xs font-medium text-neutral-700">{layout.name}</span>
+              {isActive ? <Check className="h-3.5 w-3.5 shrink-0 text-black" /> : null}
             </div>
           </button>
         )

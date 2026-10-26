@@ -3,7 +3,6 @@ import { cn } from "@/utils/cn"
 interface VerifiedBadgeProps {
   className?: string
   title?: string
-  variant?: "default" | "whatsapp"
 }
 
 const badgePath =
@@ -13,7 +12,6 @@ const checkPath = "M27.413 14.319l2.254 2.287-11.43 11.5-6.835-6.93 2.244-2.258 
 export const VerifiedBadge = ({
   className,
   title = "Verified",
-  variant = "default",
 }: VerifiedBadgeProps) => (
   <svg
     aria-label={title}
@@ -24,13 +22,6 @@ export const VerifiedBadge = ({
     width="18"
   >
     <title>{title}</title>
-    {variant === "whatsapp" ? (
-      <>
-        <path d={badgePath} fill="#2cd268" />
-        <path d={checkPath} fill="#ffffff" />
-      </>
-    ) : (
-      <path d={`${badgePath}${checkPath}`} fill="rgb(0, 149, 246)" fillRule="evenodd" />
-    )}
+    <path d={`${badgePath}${checkPath}`} fill="rgb(0, 149, 246)" fillRule="evenodd" />
   </svg>
 )

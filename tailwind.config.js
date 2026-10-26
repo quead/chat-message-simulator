@@ -46,8 +46,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        display: ["\"Space Grotesk\"", "ui-sans-serif", "system-ui", "sans-serif"],
-        body: ["\"IBM Plex Sans\"", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        body: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

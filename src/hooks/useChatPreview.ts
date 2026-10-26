@@ -7,6 +7,7 @@ import { clamp, getScreenScrollTops } from "@/utils/helpers"
 interface ConversationMetrics {
   contentHeight: number
   viewportHeight: number
+  obscuredHeight: number
   fullExportHeight: number
   hasOverflow: boolean
 }
@@ -35,6 +36,7 @@ export const useChatPreview = () => {
   const [metrics, setMetrics] = useState<ConversationMetrics>({
     contentHeight: 0,
     viewportHeight: 0,
+    obscuredHeight: 0,
     fullExportHeight: 0,
     hasOverflow: false,
   })
@@ -71,15 +73,20 @@ export const useChatPreview = () => {
       if (!viewportHeight) return
       const contentHeight = Math.ceil(Math.max(content.scrollHeight, content.offsetHeight))
       const chromeHeight = Math.max(0, exportElement.clientHeight - viewportHeight)
+      const surface = exportElement.querySelector<HTMLElement>(".chat-surface")
+      const surfaceStyles = surface ? window.getComputedStyle(surface) : null
+      const inset = (name: string) => parseFloat(surfaceStyles?.getPropertyValue(name) ?? "") || 0
       const next = {
         contentHeight,
         viewportHeight,
+        obscuredHeight: inset("--chat-inset-top") + inset("--chat-inset-bottom"),
         fullExportHeight: Math.max(exportSettings.height, Math.ceil(chromeHeight + contentHeight)),
         hasOverflow: contentHeight > viewportHeight + 1,
       }
       setMetrics((previous) =>
         previous.contentHeight === next.contentHeight &&
         previous.viewportHeight === next.viewportHeight &&
+        previous.obscuredHeight === next.obscuredHeight &&
         previous.fullExportHeight === next.fullExportHeight &&
         previous.hasOverflow === next.hasOverflow
           ? previous
@@ -107,7 +114,11 @@ export const useChatPreview = () => {
     exportSettings.captureMode === "full"
       ? Math.max(metrics.fullExportHeight, exportSettings.height)
       : exportSettings.height
-  const screenScrollTops = getScreenScrollTops(metrics.contentHeight, metrics.viewportHeight)
+  const screenScrollTops = getScreenScrollTops(
+    metrics.contentHeight,
+    metrics.viewportHeight,
+    metrics.obscuredHeight,
+  )
 
   // Where the visible part of the (possibly zoomed, scrolled) device sits, in unscaled pixels.
   const getPreviewOffset = () => {

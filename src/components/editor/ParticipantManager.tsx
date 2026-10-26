@@ -20,10 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/utils/cn"
-import { getSelfParticipantId, readImageFile } from "@/utils/helpers"
+import { getSelfParticipantId, nextParticipantColor, readImageFile } from "@/utils/helpers"
 
 const AVATAR_MAX_SIZE = 256
-const palette = ["#6366f1", "#22c55e", "#0b84ff", "#f97316", "#ec4899", "#14b8a6", "#eab308", "#8b5cf6"]
 
 const AvatarUpload = ({
   participant,
@@ -51,8 +50,8 @@ const AvatarUpload = ({
         type="button"
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "group/avatar relative block rounded-full transition focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:outline-none",
-          isOver && "ring-2 ring-indigo-500 ring-offset-2",
+          "group/avatar relative block rounded-md transition focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:ring-offset-2 focus-visible:outline-none",
+          isOver && "ring-offset-2",
         )}
         aria-label={`Change avatar for ${participant.name || "this person"}`}
         title="Click or drop an image"
@@ -60,7 +59,7 @@ const AvatarUpload = ({
         <ParticipantAvatar participant={participant} className="h-14 w-14 text-base" />
         <span
           className={cn(
-            "absolute inset-0 flex items-center justify-center rounded-full bg-slate-900/50 text-white opacity-0 transition group-hover/avatar:opacity-100",
+            "absolute inset-0 flex items-center justify-center rounded-md bg-black/50 text-white opacity-0 transition group-hover/avatar:opacity-100",
             isOver && "opacity-100",
           )}
         >
@@ -68,7 +67,7 @@ const AvatarUpload = ({
         </span>
       </button>
       {participant.isVerified ? (
-        <span className="pointer-events-none absolute -right-0.5 -bottom-0.5 rounded-full bg-white p-0.5 shadow">
+        <span className="pointer-events-none absolute -right-0.5 -bottom-0.5 rounded-md bg-white p-0.5">
           <VerifiedBadge className="h-3.5 w-3.5" />
         </span>
       ) : null}
@@ -102,8 +101,8 @@ export const ParticipantManager = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="font-display text-base font-semibold text-slate-900">People</h2>
-        <p className="text-xs text-slate-500">
+        <h2 className="font-display text-base font-semibold text-neutral-900">People</h2>
+        <p className="text-xs text-neutral-500">
           Messages from the person marked <span className="font-semibold">You</span> appear on the
           sending side. Click or drop an image on an avatar to change it.
         </p>
@@ -111,7 +110,7 @@ export const ParticipantManager = () => {
 
       {participants.length > 2 ? (
         <div className="space-y-1.5">
-          <Label htmlFor="group-name" className="text-xs text-slate-500">
+          <Label htmlFor="group-name" className="text-xs text-neutral-500">
             Group name
           </Label>
           <Input
@@ -130,8 +129,8 @@ export const ParticipantManager = () => {
             <div
               key={participant.id}
               className={cn(
-                "rounded-xl border bg-white p-3 shadow-sm transition",
-                isSelf ? "border-indigo-200 ring-1 ring-indigo-100" : "border-slate-200",
+                "rounded-lg border bg-white p-3 transition",
+                isSelf ? "border-neutral-300" : "border-neutral-200",
               )}
             >
               <div className="flex items-start gap-3">
@@ -151,7 +150,7 @@ export const ParticipantManager = () => {
                       className="h-9 font-medium"
                     />
                     <label
-                      className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 shadow-sm"
+                      className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-neutral-200"
                       style={{ backgroundColor: participant.color }}
                       title="Color (used for initials and group names)"
                     >
@@ -183,7 +182,7 @@ export const ParticipantManager = () => {
                         <SelectItem value="empty">No status</SelectItem>
                       </SelectContent>
                     </Select>
-                    <label className="flex items-center gap-2 text-xs text-slate-600">
+                    <label className="flex items-center gap-2 text-xs text-neutral-600">
                       <Switch
                         className="h-5 w-9"
                         thumbClassName="h-4 w-4 data-[state=checked]:translate-x-4"
@@ -195,14 +194,14 @@ export const ParticipantManager = () => {
                       Verified
                     </label>
                     {isSelf ? (
-                      <span className="ml-auto rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                      <span className="ml-auto rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-black">
                         You
                       </span>
                     ) : (
                       <Button
                         variant="ghost"
                         size="xs"
-                        className="ml-auto text-slate-500"
+                        className="ml-auto text-neutral-500"
                         onClick={() => setActiveParticipant(participant.id)}
                       >
                         <UserRound className="h-3.5 w-3.5" />
@@ -249,34 +248,29 @@ export const ParticipantManager = () => {
       </div>
 
       <form
-        className="flex items-center gap-2 rounded-xl border border-dashed border-slate-300 p-1.5 pl-3 transition focus-within:border-indigo-400"
+        className="flex items-center gap-2 rounded-lg border border-dashed border-neutral-300 p-1.5 pl-3 transition focus-within:border-black"
         onSubmit={(event) => {
           event.preventDefault()
           const name = newName.trim()
           if (!name) return
-          const usedColors = new Set(participants.map((participant) => participant.color))
-          addParticipant({
-            name,
-            status: "online",
-            color: palette.find((color) => !usedColors.has(color)) ?? palette[participants.length % palette.length],
-          })
+          addParticipant({ name, status: "online", color: nextParticipantColor(participants) })
           setNewName("")
         }}
       >
-        <UserPlus className="h-4 w-4 shrink-0 text-slate-400" />
+        <UserPlus className="h-4 w-4 shrink-0 text-neutral-400" />
         <input
           value={newName}
           onChange={(event) => setNewName(event.target.value)}
           placeholder="Add a person…"
           aria-label="New person name"
-          className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+          className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
         />
         <Button type="submit" size="xs" className="h-8 px-3" disabled={!newName.trim()}>
           Add
         </Button>
       </form>
       {participants.length === 2 ? (
-        <p className="text-center text-[11px] text-slate-400">Add a third person to turn this into a group chat.</p>
+        <p className="text-center text-[11px] text-neutral-400">Add a third person to turn this into a group chat.</p>
       ) : null}
     </div>
   )

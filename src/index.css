@@ -23,7 +23,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 47.4% 11.2%;
-    --radius: 0.75rem;
+    --radius: 0.5rem;
   }
 
   * {
@@ -35,7 +35,9 @@
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    letter-spacing: -0.006em;
     min-height: 100vh;
   }
 }
@@ -70,7 +72,7 @@
 }
 
 .chat-header {
-  font-family: var(--layout-font-header, "Space Grotesk");
+  font-family: var(--layout-font-header, Inter);
 }
 
 .layout-whatsapp .chat-bg-pattern {
@@ -80,6 +82,10 @@
   opacity: 1;
 }
 
+.layout-whatsapp[data-theme="light"] .chat-bg-pattern {
+  opacity: 0.55;
+}
+
 .layout-imessage .chat-bg-pattern {
   background-size: 18px 18px;
   background-repeat: repeat;
@@ -87,13 +93,9 @@
   opacity: 0.35;
 }
 
-.layout-whatsapp .whatsapp-bubble {
-  position: relative;
-}
-
 .canvas-dots {
-  background-color: #f1f5f9;
-  background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+  background-color: #f5f5f5;
+  background-image: radial-gradient(circle, #d4d4d4 1px, transparent 1px);
   background-size: 20px 20px;
 }
 

@@ -23,7 +23,7 @@ export const Toaster = () => {
         return (
           <div
             key={toast.id}
-            className="toast-enter pointer-events-auto flex max-w-md items-center gap-3 rounded-xl bg-slate-900 py-2.5 pr-2 pl-3.5 text-sm text-white shadow-xl shadow-slate-900/20"
+            className="toast-enter pointer-events-auto flex max-w-md items-center gap-3 rounded-lg bg-black py-2.5 pr-2 pl-3.5 text-sm text-white"
           >
             <Icon
               className={cn(
@@ -37,7 +37,7 @@ export const Toaster = () => {
             {toast.action ? (
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-white/10"
+                className="rounded-md px-2 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
                 onClick={() => {
                   toast.action?.onClick()
                   dismiss(toast.id)

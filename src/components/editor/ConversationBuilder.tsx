@@ -81,7 +81,7 @@ const BubblePreview = ({
     return (
       <div
         className={cn(
-          "max-w-[90%] rounded-full bg-slate-100 px-3 py-1 text-center text-xs text-slate-500 italic",
+          "max-w-[90%] rounded-md bg-neutral-100 px-3 py-1 text-center text-xs text-neutral-500 italic",
           className,
         )}
       >
@@ -92,10 +92,10 @@ const BubblePreview = ({
   return (
     <div
       className={cn(
-        "max-w-[85%] overflow-hidden rounded-2xl text-left text-sm shadow-sm",
+        "max-w-[85%] overflow-hidden rounded-lg text-left text-sm",
         isOwn
-          ? "rounded-br-md bg-indigo-600 text-white"
-          : "rounded-bl-md border border-slate-200 bg-white text-slate-800",
+          ? "rounded-br-md bg-black text-white"
+          : "rounded-bl-md border border-neutral-200 bg-white text-neutral-800",
         className,
       )}
     >
@@ -143,15 +143,15 @@ const MessageRow = ({
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "group relative flex items-start gap-1 rounded-xl py-0.5 pr-1",
+        "group relative flex items-start gap-1 rounded-lg py-0.5 pr-1",
         isDragging && "z-10 opacity-30",
-        isEditing && "bg-slate-50",
+        isEditing && "bg-neutral-50",
       )}
     >
       <button
         ref={setActivatorNodeRef}
         type="button"
-        className="mt-0.5 flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-slate-300 transition hover:bg-slate-100 hover:text-slate-500 focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none active:cursor-grabbing"
+        className="mt-0.5 flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-neutral-300 transition hover:bg-neutral-100 hover:text-neutral-500 focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none active:cursor-grabbing"
         aria-label="Drag to reorder"
         {...attributes}
         {...listeners}
@@ -177,14 +177,14 @@ const MessageRow = ({
           type="button"
           onClick={onEdit}
           className={cn(
-            "flex w-full cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none",
+            "flex w-full cursor-pointer rounded-lg focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none",
             isSystem ? "justify-center" : isOwn ? "justify-end" : "justify-start",
           )}
           aria-label={`Edit message${message.content ? `: ${message.content.slice(0, 60)}` : ""}`}
         >
           <BubblePreview message={message} isOwn={isOwn} />
         </button>
-        <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-slate-400 tabular-nums">
+        <span className="mt-0.5 flex items-center gap-1 px-1 text-[10px] text-neutral-400 tabular-nums">
           {message.isHidden ? <EyeOff className="h-3 w-3" /> : null}
           {formatTimestamp(message.timestamp)}
           {isOwn && !isSystem ? ` · ${message.status}` : ""}
@@ -343,7 +343,7 @@ export const ConversationBuilder = () => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-2">
+      <div className="flex shrink-0 items-center gap-2 border-b border-neutral-100 px-4 py-2">
         <Segmented
           label="Editor mode"
           size="sm"
@@ -355,7 +355,7 @@ export const ConversationBuilder = () => {
           ]}
         />
         {hiddenCount ? (
-          <span className="flex items-center gap-1 text-xs text-slate-400">
+          <span className="flex items-center gap-1 text-xs text-neutral-400">
             <EyeOff className="h-3 w-3" />
             {hiddenCount} hidden
           </span>
@@ -402,8 +402,8 @@ export const ConversationBuilder = () => {
       </div>
 
       {isDateOpen ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-          <CalendarDays className="h-4 w-4 text-slate-400" />
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-neutral-100 bg-neutral-50 px-4 py-2 text-xs text-neutral-500">
+          <CalendarDays className="h-4 w-4 text-neutral-400" />
           <span>All messages on</span>
           <Input
             type="date"
@@ -420,12 +420,12 @@ export const ConversationBuilder = () => {
 
       {mode === "script" ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-          <p className="text-xs leading-relaxed text-slate-500">
+          <p className="text-xs leading-relaxed text-neutral-500">
             One message per line. Start with{" "}
-            <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono">&lt;</kbd> for{" "}
-            <span className="font-semibold text-slate-700">{selfName}</span> or{" "}
-            <kbd className="rounded border border-slate-200 bg-slate-50 px-1 font-mono">&gt;</kbd> for{" "}
-            <span className="font-semibold text-slate-700">{otherName}</span>. Lines without a marker
+            <kbd className="rounded border border-neutral-200 bg-neutral-50 px-1 font-mono">&lt;</kbd> for{" "}
+            <span className="font-semibold text-neutral-700">{selfName}</span> or{" "}
+            <kbd className="rounded border border-neutral-200 bg-neutral-50 px-1 font-mono">&gt;</kbd> for{" "}
+            <span className="font-semibold text-neutral-700">{otherName}</span>. Lines without a marker
             continue the previous message.
           </p>
           <Textarea
@@ -453,11 +453,11 @@ export const ConversationBuilder = () => {
           <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
             {messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-500">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-neutral-100 text-black">
                   <MessageSquarePlus className="h-6 w-6" />
                 </div>
-                <div className="text-sm font-semibold text-slate-900">No messages yet</div>
-                <p className="max-w-xs text-xs text-slate-500">
+                <div className="text-sm font-semibold text-neutral-900">No messages yet</div>
+                <p className="max-w-xs text-xs text-neutral-500">
                   Type below, drop images anywhere, or switch to Script to paste a whole conversation.
                 </p>
               </div>
@@ -509,7 +509,7 @@ export const ConversationBuilder = () => {
                             }}
                           />
                           {isEditing ? (
-                            <div className="mt-1 mb-3 ml-7 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                            <div className="mt-1 mb-3 ml-7 rounded-lg border border-neutral-200 bg-white p-3">
                               <MessageForm
                                 key={message.id}
                                 participants={participants}
@@ -531,7 +531,7 @@ export const ConversationBuilder = () => {
                   {draggingMessage ? (
                     <div
                       className={cn(
-                        "flex cursor-grabbing rounded-2xl pl-7",
+                        "flex cursor-grabbing rounded-lg pl-7",
                         draggingMessage.type === "system"
                           ? "justify-center"
                           : draggingMessage.senderId === selfId
@@ -542,7 +542,7 @@ export const ConversationBuilder = () => {
                       <BubblePreview
                         message={draggingMessage}
                         isOwn={draggingMessage.senderId === selfId}
-                        className="shadow-xl ring-2 shadow-slate-900/15 ring-indigo-500/40"
+                        className=""
                       />
                     </div>
                   ) : null}

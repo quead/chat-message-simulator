@@ -2,7 +2,7 @@ import type { Message } from "@/types/message"
 import type { Participant } from "@/types/conversation"
 import type { LayoutConfig } from "@/types/layout"
 import { MessageBubble } from "@/components/chat/MessageBubble"
-import { formatDateSeparator, formatInstagramDateSeparator } from "@/utils/helpers"
+import { formatChatDay, formatDateSeparator, formatInstagramDateSeparator } from "@/utils/helpers"
 import { cn } from "@/utils/cn"
 
 interface ConversationViewProps {
@@ -34,7 +34,7 @@ export const ConversationView = ({
   const dateBadgeClass = cn(
     "mx-auto w-fit rounded-full px-2.5 py-0.5 text-[0.7rem]",
     isWhatsApp
-      ? "bg-white/70 text-[0.65rem] font-medium text-[#54656f] shadow-[0_1px_0_rgba(0,0,0,0.08)]"
+      ? "my-1.5 bg-[var(--chat-surface)] px-3 py-[3px] text-[12.5px] font-medium text-[var(--chat-header-text)] shadow-[0_1px_0.5px_rgba(0,0,0,0.1)]"
       : isSnapchat
         ? "bg-black/5 text-[0.6rem] font-medium text-[var(--chat-muted)]"
         : isMessenger
@@ -48,7 +48,7 @@ export const ConversationView = ({
   const systemMessageClass = cn(
     "mx-auto max-w-[70%] rounded-full px-4 py-2 text-center text-xs",
     isWhatsApp
-      ? "bg-white/70 text-[#54656f] shadow-[0_1px_0_rgba(0,0,0,0.08)]"
+      ? "my-1.5 max-w-[85%] rounded-xl bg-[var(--chat-surface)] px-3 py-1.5 text-[12.5px] leading-[17px] text-[var(--chat-header-text)] shadow-[0_1px_0.5px_rgba(0,0,0,0.1)]"
       : isSnapchat
         ? "bg-black/5 text-[var(--chat-muted)]"
         : isMessenger
@@ -75,7 +75,7 @@ export const ConversationView = ({
         className={cn(
           "flex min-h-full flex-col",
           isWhatsApp
-            ? "gap-1 px-3 py-4"
+            ? "px-3.5 pt-[calc(var(--chat-inset-top)+8px)] pb-[calc(var(--chat-inset-bottom)+8px)]"
             : isSnapchat
               ? "gap-2 px-2.5 py-4"
               : isMessenger
@@ -99,15 +99,22 @@ export const ConversationView = ({
           const sender = participants.find((participant) => participant.id === message.senderId)
           const currentDate = isInstagram
             ? formatInstagramDateSeparator(message.timestamp)
-            : formatDateSeparator(message.timestamp)
+            : isWhatsApp
+              ? formatChatDay(message.timestamp)
+              : formatDateSeparator(message.timestamp)
           const currentDateKey = formatDateSeparator(message.timestamp)
-          const previousDateKey =
-            index > 0 ? formatDateSeparator(visibleMessages[index - 1].timestamp) : ""
-          const showDate = currentDateKey !== previousDateKey
+          const previousMessage = visibleMessages[index - 1]
+          const showDate =
+            !previousMessage || formatDateSeparator(previousMessage.timestamp) !== currentDateKey
           const isOwn = message.senderId === selfId
           const nextMessage = visibleMessages[index + 1]
+          const isFirstFromSender =
+            showDate || previousMessage.senderId !== message.senderId || previousMessage.type === "system"
           const isLastFromSender =
-            !nextMessage || nextMessage.senderId !== message.senderId || nextMessage.type === "system"
+            !nextMessage ||
+            nextMessage.senderId !== message.senderId ||
+            nextMessage.type === "system" ||
+            formatDateSeparator(nextMessage.timestamp) !== currentDateKey
           const showAvatar = (isInstagram || isMessenger) && !isOwn && isLastFromSender
 
           if (message.type === "system") {
@@ -120,7 +127,12 @@ export const ConversationView = ({
           }
 
           return (
-            <div key={message.id} className={isWhatsApp ? "space-y-2" : "space-y-3"}>
+            <div
+              key={message.id}
+              className={
+                isWhatsApp ? (isFirstFromSender && index > 0 ? "pt-2" : "pt-[3px]") : "space-y-3"
+              }
+            >
               {showDate ? <div className={dateBadgeClass}>{currentDate}</div> : null}
               <MessageBubble
                 message={message}
@@ -129,6 +141,8 @@ export const ConversationView = ({
                 layout={layout}
                 isGroup={isGroup}
                 showAvatar={showAvatar}
+                isFirstInRun={isFirstFromSender}
+                isLastInRun={isLastFromSender}
               />
             </div>
           )

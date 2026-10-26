@@ -31,11 +31,11 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-base font-semibold text-slate-900">Export</h2>
-        <p className="text-xs text-slate-500">Choose a size and capture mode, then download.</p>
+        <h2 className="font-display text-base font-semibold text-neutral-900">Export</h2>
+        <p className="text-xs text-neutral-500">Choose a size and capture mode, then download.</p>
       </div>
 
-      <div className="rounded-xl bg-slate-900 p-3.5 text-white shadow-sm">
+      <div className="rounded-lg bg-black p-3.5 text-white">
         <div className="text-[11px] font-medium tracking-wide text-white/50 uppercase">Output</div>
         <div className="mt-0.5 text-sm font-medium tabular-nums">
           {describeExport(exportSettings, resolvedHeight, screenCount)}
@@ -53,7 +53,7 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
           </Button>
           <Button
             size="sm"
-            className="bg-white text-slate-900 hover:bg-slate-100"
+            className="bg-white text-neutral-900 hover:bg-neutral-100"
             disabled={exporter.isExporting}
             onClick={() => exporter.run("download")}
           >
@@ -64,7 +64,7 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
       </div>
 
       <section className="space-y-2.5">
-        <h3 className="text-sm font-semibold text-slate-900">Capture</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">Capture</h3>
         <div className="space-y-1.5" role="radiogroup" aria-label="Capture mode">
           {(Object.keys(captureModeLabels) as ExportCaptureMode[]).map((mode) => {
             const isActive = exportSettings.captureMode === mode
@@ -76,23 +76,23 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
                 aria-checked={isActive}
                 onClick={() => setExportSettings({ captureMode: mode })}
                 className={cn(
-                  "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none",
-                  isActive ? "border-indigo-500 bg-indigo-50/50" : "border-slate-200 hover:border-slate-300",
+                  "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none",
+                  isActive ? "border-black bg-neutral-50" : "border-neutral-200 hover:border-neutral-300",
                 )}
               >
                 <span
                   className={cn(
-                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                    isActive ? "border-indigo-600" : "border-slate-300",
+                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border",
+                    isActive ? "border-black" : "border-neutral-300",
                   )}
                 >
-                  {isActive ? <span className="h-2 w-2 rounded-full bg-indigo-600" /> : null}
+                  {isActive ? <span className="h-2 w-2 rounded-full bg-black" /> : null}
                 </span>
                 <span>
-                  <span className="block text-sm font-medium text-slate-900">
+                  <span className="block text-sm font-medium text-neutral-900">
                     {captureModeLabels[mode]}
                   </span>
-                  <span className="block text-xs text-slate-500">{captureDescriptions[mode]}</span>
+                  <span className="block text-xs text-neutral-500">{captureDescriptions[mode]}</span>
                 </span>
               </button>
             )
@@ -101,7 +101,7 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
       </section>
 
       <section className="space-y-2.5">
-        <h3 className="text-sm font-semibold text-slate-900">Device size</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">Device size</h3>
         <SizePresets
           selectedId={exportSettings.presetId}
           onSelect={(preset) =>
@@ -118,7 +118,7 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
             className="h-9 tabular-nums"
             aria-label="Width in pixels"
           />
-          <span className="text-slate-400">×</span>
+          <span className="text-neutral-400">×</span>
           <Input
             type="number"
             min={120}
@@ -128,16 +128,16 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
             className="h-9 tabular-nums"
             aria-label="Height in pixels"
           />
-          <span className="text-xs text-slate-400">px</span>
+          <span className="text-xs text-neutral-400">px</span>
         </div>
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-900">Image</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">Image</h3>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-neutral-600">
             Resolution
-            <span className="block text-xs text-slate-400 tabular-nums">
+            <span className="block text-xs text-neutral-400 tabular-nums">
               {exportSettings.width * exportSettings.scale} × {resolvedHeight * exportSettings.scale}px
             </span>
           </span>
@@ -150,7 +150,7 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
           />
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-600">Format</span>
+          <span className="text-sm text-neutral-600">Format</span>
           <Segmented
             label="Format"
             size="sm"
@@ -164,7 +164,7 @@ export const ExportPanel = ({ preview }: { preview: ChatPreview }) => {
         </div>
         {exportSettings.format === "jpeg" ? (
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center justify-between text-xs text-neutral-500">
               <span>JPEG quality</span>
               <span className="tabular-nums">{Math.round(exportSettings.quality * 100)}%</span>
             </div>

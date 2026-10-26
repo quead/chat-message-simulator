@@ -43,5 +43,7 @@ export interface LayoutConfig {
   radius: string
   showAvatars: boolean
   showStatus: boolean
+  // Header and composer float over the conversation; messages are padded by these heights (px).
+  floatingChrome?: { top: number; bottom: number }
   themes: LayoutTheme[]
 }

@@ -25,14 +25,14 @@ export const SizePresets = ({ selectedId, onSelect }: SizePresetsProps) => (
           aria-pressed={isActive}
           onClick={() => onSelect(preset)}
           className={cn(
-            "flex items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none",
-            isActive ? "border-indigo-500 bg-indigo-50/50" : "border-slate-200 hover:border-slate-300",
+            "flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left transition focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none",
+            isActive ? "border-black bg-neutral-50" : "border-neutral-200 hover:border-neutral-300",
           )}
         >
-          <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-indigo-600" : "text-slate-400")} />
+          <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-black" : "text-neutral-400")} />
           <span className="min-w-0">
-            <span className="block truncate text-xs font-medium text-slate-900">{preset.label}</span>
-            <span className="block text-[11px] text-slate-500 tabular-nums">
+            <span className="block truncate text-xs font-medium text-neutral-900">{preset.label}</span>
+            <span className="block text-[11px] text-neutral-500 tabular-nums">
               {preset.width} × {preset.height}
             </span>
           </span>

@@ -1,4 +1,4 @@
-import { format } from "date-fns"
+import { differenceInCalendarDays, format, isThisYear, isToday, isYesterday } from "date-fns"
 import type { Conversation, Participant } from "@/types/conversation"
 import type { Message } from "@/types/message"
 
@@ -23,6 +23,17 @@ export const formatDateSeparator = (timestamp: string) => {
   } catch {
     return ""
   }
+}
+
+// Relative day labels like messaging apps use: Today, Yesterday, weekday, then the date.
+export const formatChatDay = (timestamp: string) => {
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return ""
+  if (isToday(date)) return "Today"
+  if (isYesterday(date)) return "Yesterday"
+  const days = differenceInCalendarDays(new Date(), date)
+  if (days > 0 && days < 7) return format(date, "EEEE")
+  return format(date, isThisYear(date) ? "EEE, MMM d" : "MMM d, yyyy")
 }
 
 export const formatInstagramDateSeparator = (timestamp: string) => {
@@ -77,6 +88,16 @@ export const readImageFile = async (file: File, maxDimension: number): Promise<s
 export const isJsonFile = (file: File) =>
   file.type === "application/json" || file.name.toLowerCase().endsWith(".json")
 
+const participantPalette = ["#22c55e", "#0b84ff", "#f97316", "#ec4899", "#14b8a6", "#eab308", "#ef4444", "#64748b"]
+
+export const nextParticipantColor = (participants: Participant[]) => {
+  const used = new Set(participants.map((participant) => participant.color))
+  return (
+    participantPalette.find((color) => !used.has(color)) ??
+    participantPalette[participants.length % participantPalette.length]
+  )
+}
+
 // The active participant is "you": their messages render on the sending side.
 export const getSelfParticipantId = (participants: Participant[], activeParticipantId: string) =>
   participants.find((participant) => participant.id === activeParticipantId)?.id ??
@@ -100,12 +121,14 @@ export const getNextTimestamp = (messages: Message[]) => {
 }
 
 // Scroll offsets that page through the conversation one viewport at a time, ending flush at the bottom.
-export const getScreenScrollTops = (contentHeight: number, viewportHeight: number) => {
+// Floating chrome hides `obscuredHeight` of every screen, so pages overlap by that much.
+export const getScreenScrollTops = (contentHeight: number, viewportHeight: number, obscuredHeight = 0) => {
   const viewport = Math.round(viewportHeight)
   const maxScroll = Math.max(0, Math.round(contentHeight) - viewport)
   if (!viewport || maxScroll === 0) return [0]
+  const step = Math.max(1, viewport - Math.round(obscuredHeight))
   const positions: number[] = []
-  for (let top = 0; top < maxScroll; top += viewport) {
+  for (let top = 0; top < maxScroll; top += step) {
     positions.push(top)
   }
   positions.push(maxScroll)

@@ -6,7 +6,6 @@ import {
   FileDown,
   FileText,
   FileUp,
-  MessagesSquare,
   MoreHorizontal,
   Redo2,
   RotateCcw,
@@ -67,8 +66,8 @@ const SaveIndicator = () => {
         <span
           tabIndex={0}
           className={cn(
-            "hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex",
-            failed ? "bg-rose-50 text-rose-600" : "text-slate-500",
+            "hidden items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium sm:inline-flex",
+            failed ? "bg-rose-50 text-rose-600" : "text-neutral-500",
           )}
         >
           {failed ? <CircleAlert className="h-3.5 w-3.5" /> : <CloudCheck className="h-3.5 w-3.5" />}
@@ -109,16 +108,14 @@ export const Toolbar = () => {
   }, [redo, undo])
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 sm:gap-3 sm:px-4">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm shadow-indigo-500/30">
-          <MessagesSquare className="h-[18px] w-[18px]" />
-        </div>
-        <div className="hidden min-w-0 leading-tight sm:block">
-          <div className="truncate font-display text-[15px] font-semibold text-slate-900">
-            Chat Message Simulator
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-neutral-200 bg-white px-3 sm:gap-3 sm:px-4">
+      <div className="flex min-w-0 items-center">
+        <div className="min-w-0 leading-tight">
+          <div className="truncate font-display text-[15px] font-semibold text-black">
+            <span className="sm:hidden">Chat Sim</span>
+            <span className="hidden sm:inline">Chat Message Simulator</span>
           </div>
-          <div className="truncate text-[11px] text-slate-500">Realistic chat mockups, ready to export</div>
+          <div className="hidden truncate text-[11px] text-neutral-500 sm:block">Realistic chat mockups, ready to export</div>
         </div>
       </div>
 
@@ -136,7 +133,7 @@ export const Toolbar = () => {
 
       <div className="flex items-center gap-1 lg:ml-auto">
         <SaveIndicator />
-        <div className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" />
+        <div className="mx-1 hidden h-5 w-px bg-neutral-200 sm:block" />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon-sm" onClick={undo} disabled={!canUndo} aria-label="Undo">

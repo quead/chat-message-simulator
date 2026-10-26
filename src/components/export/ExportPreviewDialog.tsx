@@ -28,15 +28,15 @@ export const ExportPreviewDialog = ({ exporter, summary }: ExportPreviewDialogPr
           <DialogTitle>Export preview</DialogTitle>
           <DialogDescription>{summary}</DialogDescription>
         </DialogHeader>
-        <div className="-mx-6 min-h-0 flex-1 overflow-y-auto bg-slate-50 px-6 py-4">
+        <div className="-mx-6 min-h-0 flex-1 overflow-y-auto bg-neutral-50 px-6 py-4">
           {preview.loading ? (
-            <div className="flex h-48 flex-col items-center justify-center gap-3 text-sm text-slate-500">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+            <div className="flex h-48 flex-col items-center justify-center gap-3 text-sm text-neutral-500">
+              <Loader2 className="h-6 w-6 animate-spin text-black" />
               Rendering image…
             </div>
           ) : null}
           {preview.error ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               Export failed: {preview.error}
             </div>
           ) : null}
@@ -46,15 +46,15 @@ export const ExportPreviewDialog = ({ exporter, summary }: ExportPreviewDialogPr
                 <img
                   src={url}
                   alt={isSequence ? `Export preview screen ${index + 1}` : "Export preview"}
-                  className="max-h-[62dvh] w-auto max-w-full rounded-xl border border-slate-200 bg-white object-contain shadow-sm"
+                  className="max-h-[62dvh] w-auto max-w-full rounded-lg border border-neutral-200 bg-white object-contain"
                 />
                 {isSequence ? (
-                  <figcaption className="flex items-center justify-between text-xs text-slate-500">
+                  <figcaption className="flex items-center justify-between text-xs text-neutral-500">
                     Screen {index + 1}
                     <a
                       href={url}
                       download={buildDownloadName(format, index)}
-                      className="font-medium text-indigo-600 hover:underline"
+                      className="font-medium text-black hover:underline"
                     >
                       Download
                     </a>

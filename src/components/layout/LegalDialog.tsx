@@ -130,12 +130,12 @@ export const LegalDialog = ({ doc, onClose }: LegalDialogProps) => {
             <DialogHeader>
               <DialogTitle>{content.title}</DialogTitle>
               <DialogDescription>{content.description}</DialogDescription>
-              <div className="text-xs text-slate-400">{LAST_UPDATED}</div>
+              <div className="text-xs text-neutral-400">{LAST_UPDATED}</div>
             </DialogHeader>
-            <div className="mt-4 space-y-4 text-sm text-slate-600">
+            <div className="mt-4 space-y-4 text-sm text-neutral-600">
               {content.sections.map((section) => (
                 <section key={section.heading} className="space-y-1.5">
-                  <h3 className="font-semibold text-slate-900">{section.heading}</h3>
+                  <h3 className="font-semibold text-neutral-900">{section.heading}</h3>
                   {section.body.map((paragraph) => (
                     <p key={paragraph}>{paragraph}</p>
                   ))}

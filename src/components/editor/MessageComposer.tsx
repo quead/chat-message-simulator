@@ -1,8 +1,8 @@
 import { useRef, useState } from "react"
-import { ImagePlus, Loader2, SendHorizontal, SlidersHorizontal, X } from "lucide-react"
+import { ImagePlus, Loader2, Plus, SendHorizontal, SlidersHorizontal, X } from "lucide-react"
 import type { MessageStatus } from "@/types/message"
 import { useConversationStore } from "@/store/conversationStore"
-import { MESSAGE_IMAGE_MAX_SIZE } from "@/store/fileActions"
+import { MESSAGE_IMAGE_MAX_SIZE, undoAction } from "@/store/fileActions"
 import { toast } from "@/store/toastStore"
 import { useFileDrop } from "@/hooks/useFileDrop"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { ParticipantAvatar } from "@/components/ui/participant-avatar"
 import { Segmented } from "@/components/ui/segmented"
 import { cn } from "@/utils/cn"
-import { getNextTimestamp, getSelfParticipantId, readImageFile } from "@/utils/helpers"
+import { getNextTimestamp, getSelfParticipantId, nextParticipantColor, readImageFile } from "@/utils/helpers"
 
 const MAX_TEXTAREA_HEIGHT = 144
 
@@ -25,6 +25,10 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
   const messages = useConversationStore((state) => state.conversation.messages)
   const activeParticipantId = useConversationStore((state) => state.activeParticipantId)
   const addMessage = useConversationStore((state) => state.addMessage)
+  const addParticipant = useConversationStore((state) => state.addParticipant)
+  const removeParticipant = useConversationStore((state) => state.removeParticipant)
+  const setActiveParticipant = useConversationStore((state) => state.setActiveParticipant)
+  const setUi = useConversationStore((state) => state.setUi)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const selfId = getSelfParticipantId(participants, activeParticipantId)
@@ -82,77 +86,130 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
     onSent?.()
   }
 
+  const addPerson = () => {
+    addParticipant({
+      name: `Person ${participants.length + 1}`,
+      status: "online",
+      color: nextParticipantColor(participants),
+    })
+    // The store appends, so the new person is last; send as them next.
+    const added = useConversationStore.getState().conversation.participants.at(-1)
+    if (added) setPreferredSenderId(added.id)
+    toast(`Added ${added?.name ?? "a person"}`, "success", {
+      label: "Rename",
+      onClick: () => setUi({ activePanel: "participants" }),
+    })
+  }
+
   if (!participants.length) {
     return (
-      <div className="shrink-0 border-t border-slate-200 p-4 text-center text-xs text-slate-500">
+      <div className="shrink-0 border-t border-neutral-200 p-4 text-center text-xs text-neutral-500">
         Add people in the People tab to start writing messages.
       </div>
     )
   }
 
   return (
-    <div className="shrink-0 border-t border-slate-200 bg-white px-3 pt-2.5 pb-3" {...dropProps}>
-      <div className="hide-scrollbar mb-2 flex items-center gap-1.5 overflow-x-auto">
-        <span className="shrink-0 pr-0.5 text-[11px] font-medium text-slate-400">From</span>
+    <div className="shrink-0 border-t border-neutral-200 bg-white px-3 pt-2.5 pb-3" {...dropProps}>
+      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+        <span className="shrink-0 pr-1 text-xs text-neutral-400">From</span>
         {participants.map((participant) => {
           const isActive = participant.id === senderId
+          const name = participant.name || "Unnamed"
           return (
-            <button
+            <div
               key={participant.id}
-              type="button"
-              aria-pressed={isActive}
-              onClick={() => {
-                setPreferredSenderId(participant.id)
-                textareaRef.current?.focus()
-              }}
               className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-0.5 text-xs font-medium transition focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none",
+                "group flex h-7 shrink-0 items-center rounded-md border text-xs font-medium transition-colors",
                 isActive
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900",
+                  ? "border-black bg-black text-white"
+                  : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-black",
               )}
             >
-              <ParticipantAvatar participant={participant} className="h-5 w-5 text-[9px]" />
-              {participant.name || "Unnamed"}
-              {participant.id === selfId ? <span className="opacity-60">(you)</span> : null}
-            </button>
+              <button
+                type="button"
+                aria-pressed={isActive}
+                title={`Write as ${name} · double-click to make ${name} "you"`}
+                onClick={() => {
+                  setPreferredSenderId(participant.id)
+                  textareaRef.current?.focus()
+                }}
+                onDoubleClick={() => {
+                  if (participant.id === selfId) return
+                  setActiveParticipant(participant.id)
+                  toast(`${name} is now you: their messages show on the sending side`, "success", undoAction)
+                }}
+                className="flex h-full items-center gap-1.5 rounded-l-md pr-1 pl-1 select-none focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none"
+              >
+                <ParticipantAvatar participant={participant} className="h-5 w-5 text-[9px]" />
+                {name}
+                {participant.id === selfId ? <span className="font-normal opacity-60">you</span> : null}
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove ${name}`}
+                title={`Remove ${name}`}
+                onClick={() => {
+                  removeParticipant(participant.id)
+                  toast(`Removed ${name} and their messages`, "info", undoAction)
+                }}
+                className="flex h-full w-5 items-center justify-center rounded-r-md opacity-0 transition-opacity group-hover:opacity-50 hover:!opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none pointer-coarse:opacity-50"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
           )
         })}
+        <button
+          type="button"
+          onClick={addPerson}
+          className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-black focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none"
+        >
+          <Plus className="h-3 w-3" />
+          Person
+        </button>
+        <button
+          type="button"
+          onClick={() => setUi({ activePanel: "participants" })}
+          className="ml-auto h-7 shrink-0 rounded-md px-2 text-xs text-neutral-400 transition-colors hover:text-black focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none"
+        >
+          Manage
+        </button>
       </div>
 
       {imageUrl || isReadingImage ? (
         <div className="mb-2 flex items-center gap-2.5">
           <div className="relative h-14 w-14 shrink-0">
             {isReadingImage ? (
-              <div className="flex h-full w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
-                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+              <div className="flex h-full w-full items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50">
+                <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
               </div>
             ) : (
-              <img src={imageUrl} alt="Attached" className="h-full w-full rounded-lg border border-slate-200 object-cover" />
+              <img src={imageUrl} alt="Attached" className="h-full w-full rounded-lg border border-neutral-200 object-cover" />
             )}
             <button
               type="button"
-              className="absolute -top-1.5 -right-1.5 rounded-full bg-slate-900 p-0.5 text-white shadow"
+              className="absolute -top-1.5 -right-1.5 rounded-md bg-black p-0.5 text-white"
               onClick={() => setImageUrl("")}
               aria-label="Remove image"
             >
               <X className="h-3 w-3" />
             </button>
           </div>
-          <span className="text-xs text-slate-500">Image attached. Add an optional caption.</span>
+          <span className="text-xs text-neutral-500">Image attached. Add an optional caption.</span>
         </div>
       ) : null}
 
       <div
         className={cn(
-          "flex items-end gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm transition focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/20",
-          isOver && "border-indigo-400 bg-indigo-50/60 ring-2 ring-indigo-500/30",
+          "flex items-end gap-1 rounded-lg border border-neutral-200 bg-white p-1 transition focus-within:border-black",
+          isOver && "border-black bg-neutral-50",
         )}
       >
         <Button
           variant="ghost"
           size="icon-sm"
-          className="rounded-xl"
+          className="rounded-lg"
           onClick={() => fileInputRef.current?.click()}
           aria-label="Attach image"
           title="Attach image (or paste / drop one)"
@@ -186,12 +243,12 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
               : `Message as ${sender?.name || "Unnamed"}…`
           }
           aria-label="Message text"
-          className="max-h-36 min-h-8 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          className="max-h-36 min-h-8 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
         />
         <Button
           variant="ghost"
           size="icon-sm"
-          className={cn("rounded-xl", isOptionsOpen && "bg-slate-100 text-slate-900")}
+          className={cn("rounded-lg", isOptionsOpen && "bg-neutral-100 text-neutral-900")}
           aria-pressed={isOptionsOpen}
           onClick={() => setIsOptionsOpen((open) => !open)}
           aria-label="Message options"
@@ -201,7 +258,7 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
         </Button>
         <Button
           size="icon-sm"
-          className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
+          className="rounded-lg bg-black hover:bg-black"
           disabled={!canSend}
           onClick={() => send(false)}
           aria-label="Add message"
@@ -211,9 +268,9 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
       </div>
 
       {isOptionsOpen ? (
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2.5 rounded-xl bg-slate-50 p-2.5">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2.5 rounded-lg bg-neutral-50 p-2.5">
           <div className="space-y-1">
-            <span className="block text-[11px] font-medium text-slate-500">Type</span>
+            <span className="block text-[11px] font-medium text-neutral-500">Type</span>
             <Segmented
               label="Message type"
               size="sm"
@@ -226,7 +283,7 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
             />
           </div>
           <div className="space-y-1">
-            <span className="block text-[11px] font-medium text-slate-500">Status</span>
+            <span className="block text-[11px] font-medium text-neutral-500">Status</span>
             <Segmented<MessageStatus>
               label="Delivery status"
               size="sm"
@@ -240,7 +297,7 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
             />
           </div>
           <label className="block w-full space-y-1">
-            <span className="block text-[11px] font-medium text-slate-500">Time</span>
+            <span className="block text-[11px] font-medium text-neutral-500">Time</span>
             <span className="flex items-center gap-2">
               <Input
                 type="datetime-local"
@@ -248,7 +305,7 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
                 onChange={(event) => setTimestamp(event.target.value)}
                 className="h-8 w-auto px-2 text-xs"
               />
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-neutral-400">
                 {timestamp ? "Next messages follow this time." : "Empty: 1 min after the last message."}
               </span>
             </span>
@@ -256,10 +313,11 @@ export const MessageComposer = ({ onSent }: { onSent?: () => void }) => {
         </div>
       ) : null}
 
-      <p className="mt-1.5 hidden text-[11px] text-slate-400 pointer-fine:block">
+      <p className="mt-1.5 hidden text-[11px] text-neutral-400 pointer-fine:block">
         <kbd className="font-sans font-semibold">Enter</kbd> add ·{" "}
         <kbd className="font-sans font-semibold">Shift+Enter</kbd> new line ·{" "}
-        <kbd className="font-sans font-semibold">Ctrl+Enter</kbd> add &amp; switch sender
+        <kbd className="font-sans font-semibold">Ctrl+Enter</kbd> add &amp; switch ·{" "}
+        <kbd className="font-sans font-semibold">Double-click</kbd> name to make them you
       </p>
       <input
         ref={fileInputRef}

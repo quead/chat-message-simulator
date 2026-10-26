@@ -101,25 +101,25 @@ export const MessageForm = ({ participants, initial, onSubmit, onCancel }: Messa
       {type === "image" ? (
         <div
           className={cn(
-            "flex items-center gap-3 rounded-lg border border-dashed border-slate-200 p-2 transition",
-            isOver && "border-indigo-400 bg-indigo-50/60",
+            "flex items-center gap-3 rounded-lg border border-dashed border-neutral-200 p-2 transition",
+            isOver && "border-black bg-neutral-50",
           )}
           {...dropProps}
         >
-          <div className="flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-100">
+          <div className="flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-neutral-100">
             {isReadingImage ? (
-              <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+              <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
             ) : imageUrl ? (
               <img src={imageUrl} alt="Message attachment" className="h-full w-full object-cover" />
             ) : (
-              <ImagePlus className="h-5 w-5 text-slate-300" />
+              <ImagePlus className="h-5 w-5 text-neutral-300" />
             )}
           </div>
           <div className="space-y-1">
             <Button type="button" variant="outline" size="xs" onClick={() => fileInputRef.current?.click()}>
               {imageUrl ? "Replace image" : "Upload image"}
             </Button>
-            <p className="text-[11px] text-slate-400">Or drop / paste an image here.</p>
+            <p className="text-[11px] text-neutral-400">Or drop / paste an image here.</p>
           </div>
           <input
             ref={fileInputRef}
@@ -140,7 +140,7 @@ export const MessageForm = ({ participants, initial, onSubmit, onCancel }: Messa
 
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">From</Label>
+          <Label className="text-xs text-neutral-500">From</Label>
           <Select value={senderId} onValueChange={setSenderId}>
             <SelectTrigger className="h-9">
               <SelectValue placeholder="Sender" />
@@ -155,7 +155,7 @@ export const MessageForm = ({ participants, initial, onSubmit, onCancel }: Messa
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Type</Label>
+          <Label className="text-xs text-neutral-500">Type</Label>
           <Select
             value={type}
             onValueChange={(value) => {
@@ -174,7 +174,7 @@ export const MessageForm = ({ participants, initial, onSubmit, onCancel }: Messa
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Status</Label>
+          <Label className="text-xs text-neutral-500">Status</Label>
           <Select value={status} onValueChange={(value) => setStatus(value as Message["status"])}>
             <SelectTrigger className="h-9">
               <SelectValue />
@@ -187,7 +187,7 @@ export const MessageForm = ({ participants, initial, onSubmit, onCancel }: Messa
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-slate-500">Time</Label>
+          <Label className="text-xs text-neutral-500">Time</Label>
           <Input
             type="datetime-local"
             value={timestamp}
@@ -204,7 +204,7 @@ export const MessageForm = ({ participants, initial, onSubmit, onCancel }: Messa
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
-        <span className="ml-auto hidden text-[11px] text-slate-400 pointer-fine:inline">
+        <span className="ml-auto hidden text-[11px] text-neutral-400 pointer-fine:inline">
           Ctrl+Enter to save · Esc to cancel
         </span>
       </div>

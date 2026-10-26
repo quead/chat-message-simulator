@@ -2,6 +2,7 @@ import { Camera, ImagePlus, Mic, Plus, Send, Smile, Sticker } from "lucide-react
 import { Button } from "@/components/ui/button"
 import { cn } from "@/utils/cn"
 import type { LayoutConfig } from "@/types/layout"
+import { WhatsAppComposer } from "@/components/chat/WhatsAppChat"
 
 interface MessageInputProps {
   placeholder?: string
@@ -9,19 +10,18 @@ interface MessageInputProps {
 }
 
 export const MessageInput = ({ placeholder = "Message", layout }: MessageInputProps) => {
-  const isWhatsApp = layout?.id === "whatsapp"
+  if (layout?.id === "whatsapp") return <WhatsAppComposer />
   const isIMessage = layout?.id === "imessage"
   const isSnapchat = layout?.id === "snapchat"
   const isMessenger = layout?.id === "messenger"
   const isInstagram = layout?.id === "instagram"
   const isTinder = layout?.id === "tinder"
   const iconClass =
-    isWhatsApp || isIMessage || isSnapchat || isMessenger || isInstagram || isTinder
+    isIMessage || isSnapchat || isMessenger || isInstagram || isTinder
       ? "h-[18px] w-[18px]"
       : "h-4 w-4"
   const iconButtonClass = cn(
     "text-[var(--chat-muted)] hover:bg-white/10",
-    isWhatsApp && "h-8 w-8 rounded-full",
     isIMessage && "h-8 w-8 rounded-full",
     isSnapchat && "h-8 w-8 rounded-full text-[var(--chat-header-text)] hover:bg-black/5",
     isMessenger && "h-8 w-8 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(0,132,255,0.1)]",
@@ -44,7 +44,6 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
     <div
       className={cn(
         "relative z-10 flex items-center gap-2 border-t border-white/10 px-3 py-2",
-        isWhatsApp && "gap-1.5 border-black/5 px-2.5 py-2",
         isIMessage && "border-black/5 px-3 py-2",
         isSnapchat && "gap-2 border-black/5 px-3 py-2",
         isMessenger && "gap-2 border-black/5 px-3 py-2",
@@ -110,16 +109,12 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
           <Plus className={iconClass} />
         </Button>
       ) : null}
-      {isWhatsApp ? (
-        <Button variant="ghost" size="icon" className={iconButtonClass}>
-          <Plus className={iconClass} />
-        </Button>
-      ) : !isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
+      {!isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
         <Button variant="ghost" size="icon" className={iconButtonClass}>
           <Smile className={iconClass} />
         </Button>
       ) : null}
-      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
+      {!isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
         <Button variant="ghost" size="icon" className={iconButtonClass}>
           <ImagePlus className={iconClass} />
         </Button>
@@ -127,7 +122,6 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
       <div
         className={cn(
           "flex-1 rounded-full px-4 py-2 text-sm",
-          isWhatsApp && "min-h-[36px] py-2 text-[0.95rem] shadow-sm",
           isIMessage && "flex items-center gap-2 border py-2 text-[0.95rem]",
           isSnapchat && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
           isMessenger && "flex items-center gap-2 border bg-[var(--chat-input-inner)] py-2 text-[0.95rem]",
@@ -148,11 +142,6 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
         {isMessenger ? <Smile className={cn(iconClass, "text-[var(--chat-muted)]")} /> : null}
         <span className="text-[var(--chat-muted)]">{inputPlaceholder}</span>
       </div>
-      {isWhatsApp ? (
-        <Button variant="ghost" size="icon" className={iconButtonClass}>
-          <Camera className={iconClass} />
-        </Button>
-      ) : null}
       {isSnapchat ? (
         <Button
           size="icon"
@@ -194,17 +183,7 @@ export const MessageInput = ({ placeholder = "Message", layout }: MessageInputPr
           </Button>
         </>
       ) : null}
-      {isWhatsApp ? (
-        <Button
-          size="icon"
-          className={cn(
-            "bg-[var(--chat-accent)] text-white hover:opacity-90",
-            "h-10 w-10 rounded-full",
-          )}
-        >
-          <Mic className={iconClass} />
-        </Button>
-      ) : isIMessage ? (
+      {isIMessage ? (
         <Button variant="ghost" size="icon" className={iconButtonClass}>
           <Mic className={iconClass} />
         </Button>

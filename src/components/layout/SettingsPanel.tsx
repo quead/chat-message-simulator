@@ -18,8 +18,8 @@ const BACKGROUND_MAX_SIZE = 1600
 const Section = ({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) => (
   <section className="space-y-2.5">
     <div>
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-      {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
+      <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
+      {hint ? <p className="text-xs text-neutral-500">{hint}</p> : null}
     </div>
     {children}
   </section>
@@ -61,8 +61,8 @@ export const SettingsPanel = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-base font-semibold text-slate-900">Style</h2>
-        <p className="text-xs text-slate-500">Pick the messaging app and how its screen looks.</p>
+        <h2 className="font-display text-base font-semibold text-neutral-900">Style</h2>
+        <p className="text-xs text-neutral-500">Pick the messaging app and how its screen looks.</p>
       </div>
 
       <Section title="App">
@@ -71,7 +71,7 @@ export const SettingsPanel = () => {
 
       <Section title="Appearance">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-slate-600">Theme</span>
+          <span className="text-sm text-neutral-600">Theme</span>
           <Segmented
             label="Theme"
             size="sm"
@@ -85,8 +85,8 @@ export const SettingsPanel = () => {
         </div>
         <label className="flex items-center justify-between gap-3">
           <span>
-            <span className="block text-sm text-slate-600">App header &amp; input bar</span>
-            <span className="block text-xs text-slate-400">Turn off for a bubbles-only image.</span>
+            <span className="block text-sm text-neutral-600">App header &amp; input bar</span>
+            <span className="block text-xs text-neutral-400">Turn off for a bubbles-only image.</span>
           </span>
           <Switch checked={showChrome} onCheckedChange={(value) => setUi({ showChrome: value })} />
         </label>
@@ -95,15 +95,15 @@ export const SettingsPanel = () => {
       <Section title="Wallpaper" hint="Drop an image below, or pick a solid color.">
         <div
           className={cn(
-            "flex items-center gap-3 rounded-xl border border-dashed border-slate-300 p-2.5 transition",
-            isOver && "border-indigo-400 bg-indigo-50/60",
+            "flex items-center gap-3 rounded-lg border border-dashed border-neutral-300 p-2.5 transition",
+            isOver && "border-black bg-neutral-50",
           )}
           {...dropProps}
         >
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="relative flex h-20 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-slate-300 focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:outline-none"
+            className="relative flex h-20 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-400 transition hover:border-neutral-300 focus-visible:ring-2 focus-visible:ring-black/50 focus-visible:outline-none"
             style={{ backgroundColor: backgroundColor || themeBackground }}
             aria-label="Upload wallpaper image"
           >
@@ -131,7 +131,7 @@ export const SettingsPanel = () => {
               ) : null}
             </div>
             <div className={cn("space-y-1", !backgroundImageUrl && "opacity-50")}>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center justify-between text-xs text-neutral-500">
                 <span>Image opacity</span>
                 <span className="tabular-nums">{opacityPercent}%</span>
               </div>
@@ -160,7 +160,7 @@ export const SettingsPanel = () => {
         </div>
         <div className="flex items-center gap-2">
           <label
-            className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-200 shadow-sm"
+            className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-neutral-200"
             style={{ backgroundColor: backgroundColor || themeBackground }}
           >
             <input

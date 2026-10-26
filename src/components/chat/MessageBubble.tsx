@@ -6,6 +6,7 @@ import { cn } from "@/utils/cn"
 import { formatTimestamp } from "@/utils/helpers"
 import { VerifiedBadge } from "@/components/ui/verified-badge"
 import { AvatarImage } from "@/components/ui/avatar-image"
+import { WhatsAppBubble } from "@/components/chat/WhatsAppChat"
 
 interface MessageBubbleProps {
   message: Message
@@ -14,6 +15,8 @@ interface MessageBubbleProps {
   layout: LayoutConfig
   isGroup: boolean
   showAvatar?: boolean
+  isFirstInRun?: boolean
+  isLastInRun?: boolean
 }
 
 const statusIcon = (status: Message["status"], className?: string) => {
@@ -30,8 +33,21 @@ export const MessageBubble = ({
   layout,
   isGroup,
   showAvatar,
+  isFirstInRun = true,
+  isLastInRun = true,
 }: MessageBubbleProps) => {
-  const isWhatsApp = layout.id === "whatsapp"
+  if (layout.id === "whatsapp") {
+    return (
+      <WhatsAppBubble
+        message={message}
+        sender={sender}
+        isOwn={isOwn}
+        isGroup={isGroup}
+        isFirstInRun={isFirstInRun}
+        isLastInRun={isLastInRun}
+      />
+    )
+  }
   const isIMessage = layout.id === "imessage"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
@@ -40,9 +56,7 @@ export const MessageBubble = ({
   const showMessengerAvatar = isMessenger && !isOwn && Boolean(showAvatar)
   const showInstagramAvatar = isInstagram && !isOwn && Boolean(showAvatar)
   const avatarFallback = (sender?.name || "??").slice(0, 2).toUpperCase()
-  const showSender = isWhatsApp
-    ? isGroup
-    : isSnapchat
+  const showSender = isSnapchat
       ? true
       : isMessenger
         ? isGroup
@@ -50,12 +64,10 @@ export const MessageBubble = ({
           ? isGroup
           : layout.showAvatars
   const verifiedBadge = sender?.isVerified ? (
-    <VerifiedBadge className="h-3.5 w-3.5" variant={isWhatsApp ? "whatsapp" : "default"} />
+    <VerifiedBadge className="h-3.5 w-3.5" />
   ) : null
   const bubbleRadius =
-    isWhatsApp
-      ? "rounded-[16px]"
-      : isIMessage
+    isIMessage
         ? "rounded-[18px]"
         : isSnapchat
           ? "rounded-none"
@@ -78,9 +90,6 @@ export const MessageBubble = ({
     color: textColor,
   }
 
-  if (isWhatsApp) {
-    bubbleStyle["--bubble-color"] = bubbleColor
-  }
   if (isInstagram && isOwn) {
     bubbleStyle.backgroundImage =
       "linear-gradient(135deg, #7c3aed 0%, #6366f1 55%, #3b82f6 100%)"
@@ -100,9 +109,7 @@ export const MessageBubble = ({
     }
   }
 
-  const imageRadius = isWhatsApp
-    ? "rounded-[12px]"
-    : isIMessage
+  const imageRadius = isIMessage
       ? "rounded-[16px]"
       : isSnapchat
         ? "rounded-none"
@@ -162,9 +169,7 @@ export const MessageBubble = ({
         bubbleAlignmentClass,
         instagramIndentClass,
         messengerIndentClass,
-        isWhatsApp
-          ? "whatsapp-bubble relative max-w-[80%] px-3 py-1.5 text-[0.94rem] leading-[1.3] shadow-[0_1px_1px_rgba(0,0,0,0.08)]"
-          : isIMessage
+        isIMessage
             ? "max-w-[76%] px-3 py-2 text-[0.95rem] leading-[1.35]"
             : isSnapchat
               ? "max-w-[82%] px-3 py-1 text-[0.95rem] leading-[1.35] shadow-none"
@@ -176,7 +181,6 @@ export const MessageBubble = ({
                     ? "max-w-[72%] px-4 py-2 text-[0.95rem] leading-[1.35] shadow-none"
                     : "max-w-[78%]",
         message.type === "image" && "p-1",
-        isWhatsApp && (isOwn ? "whatsapp-bubble--own" : "whatsapp-bubble--other"),
       )}
       style={bubbleStyle}
     >
@@ -198,7 +202,6 @@ export const MessageBubble = ({
             <p
               className={cn(
                 "mt-1 max-w-[240px] whitespace-pre-wrap break-words px-2 pb-1 text-[0.8rem] leading-snug",
-                isWhatsApp && "text-[0.75rem]",
                 isIMessage && "text-[0.82rem]",
                 isSnapchat && "text-[0.75rem] uppercase tracking-wide",
                 isMessenger && "text-[0.8rem]",
@@ -213,24 +216,6 @@ export const MessageBubble = ({
       ) : (
         <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
       )}
-      {isWhatsApp ? (
-        <div
-          className="mt-0.5 flex items-center justify-end gap-1 text-[0.6rem] leading-none"
-          style={{ color: "var(--chat-muted)" }}
-        >
-          <span>{formatTimestamp(message.timestamp)}</span>
-          {isOwn ? (
-            <span
-              className={cn(
-                "flex items-center gap-1",
-                message.status === "read" && "text-[#53bdeb]",
-              )}
-            >
-              {statusIcon(message.status, "h-3 w-3")}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   )
 
@@ -245,9 +230,7 @@ export const MessageBubble = ({
         <div
           className={cn(
             "flex items-center gap-2 text-xs",
-            isWhatsApp
-              ? "font-medium text-[0.7rem]"
-              : isSnapchat
+            isSnapchat
                 ? "font-semibold text-[0.7rem] uppercase tracking-wide"
                 : isMessenger
                   ? "font-semibold text-[0.7rem]"
@@ -256,9 +239,7 @@ export const MessageBubble = ({
                 : "text-slate-200",
           )}
           style={
-            isWhatsApp
-              ? { color: sender?.color }
-              : isSnapchat
+            isSnapchat
                 ? { color: snapBorderColor }
                 : isMessenger
                   ? { color: "var(--chat-muted)" }
@@ -267,7 +248,7 @@ export const MessageBubble = ({
                     : undefined
           }
         >
-          {!isWhatsApp && !isSnapchat ? (
+          {!isSnapchat ? (
             <span
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: sender?.color ?? "transparent" }}
@@ -299,7 +280,7 @@ export const MessageBubble = ({
       ) : (
         bubbleContent
       )}
-      {!isWhatsApp && !isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
+      {!isIMessage && !isSnapchat && !isMessenger && !isInstagram && !isTinder ? (
         <div
           className={cn(
             "flex items-center gap-2 text-[0.7rem]",

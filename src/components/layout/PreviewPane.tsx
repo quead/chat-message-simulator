@@ -70,7 +70,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
 
   return (
     <section className={cn("relative flex min-h-0 min-w-0 flex-1 flex-col", className)}>
-      <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-white/80 px-3 py-2 backdrop-blur sm:px-4">
+      <div className="flex shrink-0 items-center gap-2 border-b border-neutral-200 bg-white/80 px-3 py-2 sm:px-4">
         <LayoutSelector className="w-[150px] sm:w-[170px]" />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -92,7 +92,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
               variant="outline"
               size="icon-sm"
               aria-pressed={ui.showChrome}
-              className={cn(!ui.showChrome && "bg-slate-100 text-slate-400")}
+              className={cn(!ui.showChrome && "bg-neutral-100 text-neutral-400")}
               onClick={() => setUi({ showChrome: !ui.showChrome })}
               aria-label={ui.showChrome ? "Hide header and input bar" : "Show header and input bar"}
             >
@@ -102,7 +102,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
           <TooltipContent>{ui.showChrome ? "Hide app header & input bar" : "Show app header & input bar"}</TooltipContent>
         </Tooltip>
 
-        <div className="ml-auto flex items-center rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+        <div className="ml-auto flex items-center rounded-lg border border-neutral-200 bg-white p-0.5">
           <Button variant="ghost" size="icon-sm" className="hidden h-7 w-7 sm:inline-flex" onClick={() => setZoom(ui.zoom - 0.1)} aria-label="Zoom out">
             <Minus />
           </Button>
@@ -110,7 +110,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="h-7 min-w-14 rounded-md px-1.5 text-xs font-semibold text-slate-700 tabular-nums transition hover:bg-slate-100"
+                className="h-7 min-w-14 rounded-md px-1.5 text-xs font-semibold text-neutral-700 tabular-nums transition hover:bg-neutral-100"
                 onClick={() => setUi({ zoom: 1, autoFit: true })}
               >
                 {Math.round(appliedScale * 100)}%
@@ -121,13 +121,13 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
           <Button variant="ghost" size="icon-sm" className="hidden h-7 w-7 sm:inline-flex" onClick={() => setZoom(ui.zoom + 0.1)} aria-label="Zoom in">
             <Plus />
           </Button>
-          <div className="mx-0.5 hidden h-4 w-px bg-slate-200 sm:block" />
+          <div className="mx-0.5 hidden h-4 w-px bg-neutral-200 sm:block" />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className={cn("h-7 w-7", ui.autoFit && "bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700")}
+                className={cn("h-7 w-7", ui.autoFit && "bg-neutral-100 text-black hover:bg-neutral-100 hover:text-black")}
                 aria-pressed={ui.autoFit}
                 onClick={() => setUi({ autoFit: !ui.autoFit })}
                 aria-label="Fit to screen"
@@ -146,7 +146,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
       >
         <div ref={scrollRef} className="hide-scrollbar flex h-full w-full overflow-auto">
           <div
-            className="relative m-auto shrink-0 overflow-hidden rounded-[22px] shadow-2xl ring-1 shadow-slate-900/20 ring-slate-900/10"
+            className="relative m-auto shrink-0 overflow-hidden outline outline-1 outline-neutral-300"
             style={{
               width: exportSettings.width * appliedScale,
               height: exportSettings.height * appliedScale,
@@ -176,13 +176,13 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
         </div>
 
         {metrics.hasOverflow ? (
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-slate-900/90 py-1 pr-1 pl-3 text-xs text-white shadow-lg backdrop-blur">
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-md bg-black/90 py-1 pr-1 pl-3 text-xs text-white">
             <span className="mr-1 whitespace-nowrap text-white/80">
               {visibleMessageCount} messages · scroll inside the phone
             </span>
             <button
               type="button"
-              className="rounded-full p-1.5 transition hover:bg-white/15"
+              className="rounded-md p-1.5 transition hover:bg-white/15"
               onClick={() => preview.scrollConversation("top")}
               aria-label="Jump to first message"
               title="Jump to first message"
@@ -191,7 +191,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
             </button>
             <button
               type="button"
-              className="rounded-full p-1.5 transition hover:bg-white/15"
+              className="rounded-md p-1.5 transition hover:bg-white/15"
               onClick={() => preview.scrollConversation("bottom")}
               aria-label="Jump to latest message"
               title="Jump to latest message"
@@ -213,7 +213,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
         ) : null}
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-200 bg-white px-3 py-2.5 sm:px-4">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-neutral-200 bg-white px-3 py-2.5 sm:px-4">
         <Segmented<ExportCaptureMode>
           label="Capture"
           size="sm"
@@ -231,7 +231,7 @@ export const PreviewPane = ({ preview, className }: PreviewPaneProps) => {
         />
         <button
           type="button"
-          className="hidden text-xs text-slate-500 tabular-nums transition hover:text-slate-900 md:inline"
+          className="hidden text-xs text-neutral-500 tabular-nums transition hover:text-neutral-900 md:inline"
           onClick={() => setUi({ activePanel: "export", activeView: "editor" })}
           title="Change export settings"
         >

@@ -3,6 +3,7 @@ import type { LayoutConfig, LayoutId, LayoutTheme } from "@/types/layout"
 import { ChatHeader } from "@/components/chat/ChatHeader"
 import { ConversationView } from "@/components/chat/ConversationView"
 import { MessageInput } from "@/components/chat/MessageInput"
+import { cn } from "@/utils/cn"
 import { getConversationTitle, getSelfParticipantId } from "@/utils/helpers"
 
 interface ChatLayoutProps {
@@ -67,13 +68,17 @@ export const ChatLayout = ({
   const subtitle = isGroup
     ? groupStatusLabel(conversation.participants)
     : directStatusLabel(headerParticipant?.status, layout.id)
+  const floating = showChrome ? layout.floatingChrome : undefined
 
   return (
     <div
       className={`chat-surface relative flex h-full w-full flex-col overflow-hidden layout-${layout.id}`}
       data-layout={layout.id}
+      data-theme={theme.id}
       style={
         {
+          "--chat-inset-top": `${floating?.top ?? 0}px`,
+          "--chat-inset-bottom": `${floating?.bottom ?? 0}px`,
           "--chat-bg": backgroundColor || theme.colors.background,
           "--chat-surface": theme.colors.surface,
           "--chat-header": theme.colors.header,
@@ -107,15 +112,18 @@ export const ChatLayout = ({
       ) : null}
       {theme.pattern ? <div className="chat-layer chat-bg-pattern" aria-hidden="true" /> : null}
       {showChrome ? (
-        <ChatHeader
-          title={title}
-          subtitle={subtitle}
-          avatarUrl={!isGroup ? headerParticipant?.avatarUrl : undefined}
-          avatarFallback={!isGroup ? headerParticipant?.name : title}
-          isVerified={!isGroup ? headerParticipant?.isVerified : undefined}
-          layout={layout}
-          theme={theme}
-        />
+        <div className={cn("relative z-20 shrink-0", floating && "absolute inset-x-0 top-0")}>
+          <ChatHeader
+            title={title}
+            subtitle={subtitle}
+            avatarUrl={!isGroup ? headerParticipant?.avatarUrl : undefined}
+            avatarFallback={!isGroup ? headerParticipant?.name : title}
+            isVerified={!isGroup ? headerParticipant?.isVerified : undefined}
+            isGroup={isGroup}
+            layout={layout}
+            theme={theme}
+          />
+        </div>
       ) : null}
       <div className="relative flex-1 min-h-0">
         <ConversationView
@@ -128,7 +136,11 @@ export const ChatLayout = ({
           contentRef={conversationContentRef}
         />
       </div>
-      {showChrome ? <MessageInput layout={layout} /> : null}
+      {showChrome ? (
+        <div className={cn("relative z-20 shrink-0", floating && "absolute inset-x-0 bottom-0")}>
+          <MessageInput layout={layout} />
+        </div>
+      ) : null}
     </div>
   )
 }

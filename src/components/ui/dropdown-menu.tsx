@@ -15,7 +15,7 @@ const DropdownMenuContent = React.forwardRef<
       sideOffset={sideOffset}
       align={align}
       className={cn(
-        "z-50 min-w-[12rem] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-slate-900 shadow-xl shadow-slate-900/10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+        "z-50 min-w-[12rem] overflow-hidden rounded-lg border border-neutral-200 bg-white p-1 text-neutral-900 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
         className,
       )}
       {...props}
@@ -31,10 +31,10 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:text-slate-500",
+      "flex cursor-default items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:text-neutral-500",
       destructive
         ? "text-rose-600 data-[highlighted]:bg-rose-50 [&_svg]:text-rose-500"
-        : "data-[highlighted]:bg-slate-100",
+        : "data-[highlighted]:bg-neutral-100",
       className,
     )}
     {...props}
@@ -48,7 +48,7 @@ const DropdownMenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Label
     ref={ref}
-    className={cn("px-2.5 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-slate-400 uppercase", className)}
+    className={cn("px-2.5 pt-2 pb-1 text-[11px] font-semibold tracking-wide text-neutral-400 uppercase", className)}
     {...props}
   />
 ))
@@ -60,7 +60,7 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-slate-100", className)}
+    className={cn("-mx-1 my-1 h-px bg-neutral-100", className)}
     {...props}
   />
 ))

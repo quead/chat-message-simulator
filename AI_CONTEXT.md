@@ -22,7 +22,14 @@ React + Vite app for building chat mockups and exporting them as images. The UI 
 WhatsApp, iMessage, Snapchat, Messenger, Instagram, Tinder (each light/dark).
 
 ## Layout-specific behavior (important)
-- Layout-specific styling is keyed off `layout.id` in `src/components/chat/*`.
+- Layouts are being brought to their 2026 designs one app at a time. Updated apps get their own module and the
+  generic `ChatHeader` / `MessageInput` / `MessageBubble` delegate to it early:
+  - WhatsApp: `src/components/chat/WhatsAppChat.tsx` (iOS 26.35 "Liquid Glass": transparent header, floating
+    composer, glass controls, bubble tails on the last message of a run, frameless media, "Today"/"Yesterday" chips).
+- `LayoutConfig.floatingChrome` ({ top, bottom } px) makes header/composer overlay the conversation; content is padded
+  via `--chat-inset-top/bottom`, and screen-by-screen export overlaps pages by those insets.
+- No `backdrop-filter` in chat mocks: html-to-image can't render it. Glass = translucent fill + hairline.
+- Remaining apps still use the `layout.id` ternaries in `src/components/chat/*`.
 - `ChatLayout` adds `layout-${id}` class + `data-layout` for CSS scoping; `src/index.css` has layout-scoped CSS.
 - "You" is the active participant (`getSelfParticipantId` in `utils/helpers.ts`), in direct and group chats.
 
@@ -40,6 +47,10 @@ WhatsApp, iMessage, Snapchat, Messenger, Instagram, Tinder (each light/dark).
 
 ## Deployment
 - `.github/workflows/deploy.yml`: on push to `main`, lint + build, then publish `dist/` to `quead/quead.github.io@master` using the `PAGES_DEPLOY_KEY` secret.
+
+## Editor UI style
+- Monochrome (black/white/slate), subtle radii (`--radius: 0.5rem`), no shadows or glow rings, no purple.
+  The device preview frame is square. Keep this when adding UI.
 
 ## Notes for changes
 - Keep layout-specific styling scoped by `layout.id` checks or `layout-<id>` CSS.

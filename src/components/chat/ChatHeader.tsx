@@ -13,6 +13,7 @@ import { cn } from "@/utils/cn"
 import { Button } from "@/components/ui/button"
 import { VerifiedBadge } from "@/components/ui/verified-badge"
 import { AvatarImage } from "@/components/ui/avatar-image"
+import { WhatsAppHeader } from "@/components/chat/WhatsAppChat"
 
 interface ChatHeaderProps {
   title: string
@@ -20,6 +21,7 @@ interface ChatHeaderProps {
   avatarUrl?: string
   avatarFallback?: string
   isVerified?: boolean
+  isGroup?: boolean
   layout: LayoutConfig
   theme: LayoutTheme
 }
@@ -30,19 +32,28 @@ export const ChatHeader = ({
   avatarUrl,
   avatarFallback,
   isVerified,
+  isGroup,
   layout,
   theme,
 }: ChatHeaderProps) => {
-  const isWhatsApp = layout.id === "whatsapp"
+  if (layout.id === "whatsapp") {
+    return (
+      <WhatsAppHeader
+        title={title}
+        subtitle={layout.showStatus ? subtitle : undefined}
+        avatarUrl={avatarUrl}
+        isVerified={isVerified}
+        isGroup={isGroup}
+      />
+    )
+  }
   const isIMessage = layout.id === "imessage"
   const isSnapchat = layout.id === "snapchat"
   const isMessenger = layout.id === "messenger"
   const isInstagram = layout.id === "instagram"
   const isTinder = layout.id === "tinder"
   const BackIcon = isInstagram ? ChevronLeft : ArrowLeft
-  const actionIcons = isWhatsApp
-    ? [Video, Phone, Info]
-    : isIMessage
+  const actionIcons = isIMessage
       ? [Info]
       : isSnapchat
         ? [Video, Phone]
@@ -53,9 +64,7 @@ export const ChatHeader = ({
             : isTinder
               ? [Shield, MoreHorizontal]
               : [Phone, Video, Info]
-  const headerPadding = isWhatsApp
-    ? "px-3 py-2"
-    : isIMessage
+  const headerPadding = isIMessage
       ? "px-4 py-2.5"
       : isSnapchat
         ? "px-3 py-2"
@@ -66,9 +75,7 @@ export const ChatHeader = ({
             : isTinder
               ? "px-4 py-3"
               : "px-4 py-3"
-  const iconClass = isWhatsApp
-    ? "h-5 w-5"
-    : isIMessage || isSnapchat
+  const iconClass = isIMessage || isSnapchat
       ? "h-[18px] w-[18px]"
       : isMessenger || isInstagram
         ? "h-[18px] w-[18px]"
@@ -77,16 +84,13 @@ export const ChatHeader = ({
           : "h-4 w-4"
   const iconButtonClass = cn(
     "text-inherit hover:bg-white/10",
-    isWhatsApp && "h-9 w-9 rounded-full",
     isIMessage && "h-8 w-8 rounded-full text-[var(--chat-accent)] hover:bg-black/5",
     isSnapchat && "h-8 w-8 rounded-full text-[var(--chat-header-text)] hover:bg-black/5",
     isMessenger && "h-8 w-8 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(0,132,255,0.1)]",
     isInstagram && "h-8 w-8 rounded-full text-[var(--chat-header-text)] hover:bg-white/10",
     isTinder && "h-9 w-9 rounded-full text-[var(--chat-accent)] hover:bg-[color:rgba(253,80,104,0.12)]",
   )
-  const avatarClass = isWhatsApp
-    ? "h-9 w-9"
-    : isIMessage
+  const avatarClass = isIMessage
       ? "h-10 w-10"
       : isSnapchat
         ? "h-8 w-8"
@@ -106,9 +110,7 @@ export const ChatHeader = ({
   const fallbackClass = cn(
     "flex items-center justify-center rounded-full font-semibold",
     avatarClass,
-    isWhatsApp
-      ? "bg-white/15 text-[0.75rem]"
-      : isIMessage
+    isIMessage
         ? "bg-black/5 text-[0.7rem]"
         : isSnapchat
           ? "bg-black/5 text-[0.7rem]"
@@ -121,7 +123,7 @@ export const ChatHeader = ({
       : "bg-white/15 text-sm",
   )
   const verifiedBadge = isVerified ? (
-    <VerifiedBadge className="h-3.5 w-3.5" variant={isWhatsApp ? "whatsapp" : "default"} />
+    <VerifiedBadge className="h-3.5 w-3.5" />
   ) : null
   const avatarNode =
     showHeaderAvatar && avatarUrl ? (
@@ -140,9 +142,7 @@ export const ChatHeader = ({
       className={cn(
         "chat-header relative z-10 flex items-center justify-between gap-4",
         headerPadding,
-        isWhatsApp
-          ? "min-h-[56px]"
-          : isIMessage
+        isIMessage
             ? "min-h-[72px] border-b border-[var(--chat-border)]"
             : isSnapchat
               ? "min-h-[56px] border-b border-[var(--chat-border)]"
@@ -193,9 +193,7 @@ export const ChatHeader = ({
         <div
           className={cn(
             "flex items-center",
-            isWhatsApp
-              ? "gap-2.5"
-              : isSnapchat
+            isSnapchat
                 ? "gap-2"
                 : isMessenger
                 ? "gap-2"
@@ -214,9 +212,7 @@ export const ChatHeader = ({
               <div
                 className={cn(
                   "flex items-center gap-1 font-semibold",
-                  isWhatsApp
-                    ? "text-[0.95rem] leading-tight"
-                    : isSnapchat
+                  isSnapchat
                       ? "text-[0.9rem]"
                       : isMessenger || isInstagram
                         ? "text-[0.95rem]"
@@ -233,9 +229,7 @@ export const ChatHeader = ({
                 <div
                   className={cn(
                     "opacity-80",
-                    isWhatsApp
-                      ? "text-[0.7rem] leading-tight"
-                      : isSnapchat
+                    isSnapchat
                         ? "text-[0.65rem]"
                         : "text-xs",
                   )}
@@ -245,7 +239,7 @@ export const ChatHeader = ({
               ) : null}
             </div>
           </div>
-          <div className={cn("flex items-center", isWhatsApp ? "gap-1" : "gap-2")}>
+          <div className="flex items-center gap-2">
             {actionIcons.map((Icon, index) => (
               <Button
                 key={`${layout.id}-action-${index}`}
